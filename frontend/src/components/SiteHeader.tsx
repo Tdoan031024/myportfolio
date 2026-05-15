@@ -8,7 +8,9 @@ export default function SiteHeader() {
   const { t } = useLanguage();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-black/50 backdrop-blur">
+    <header
+      className="!sticky top-0 w-full !z-[100] bg-black/60 backdrop-blur-md shadow-[0_8px_30px_rgba(6,8,18,0.55)]"
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-16">
         <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
         <nav className="hidden gap-6 text-sm text-white/70 md:flex">

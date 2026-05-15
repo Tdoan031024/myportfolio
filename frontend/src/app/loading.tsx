@@ -1,22 +1,54 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export default function Loading() {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const handleLoad = () => setVisible(false);
+
+    if (document.readyState === "complete") {
+      handleLoad();
+      return;
+    }
+
+    window.addEventListener("load", handleLoad);
+    return () => window.removeEventListener("load", handleLoad);
+  }, []);
+
+  if (!visible) {
+    return null;
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10131f]">
+    <div className="loading-screen fixed inset-0 z-50 flex items-center justify-center">
       <div className="w-[min(560px,90vw)] text-center">
-        <div className="flex items-center justify-center gap-4">
-          {["</>", "{}", "<>"].map((logo) => (
-            <div
-              key={logo}
-              className="flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-semibold text-white/80"
-            >
-              {logo}
-            </div>
-          ))}
-        </div>
-        <h1 className="mt-3 text-3xl font-semibold text-white">
+        <h1 className="loading-title mt-3 text-3xl font-semibold text-white">
           Welcome to my Portfolio Website
         </h1>
+        <div className="mt-4 flex justify-center">
+          <div className="intro-logo-wrap">
+            <video
+              className="intro-logo intro-logo--dark intro-logo--blend w-[32rem] max-w-full"
+              autoPlay
+              loop
+              muted
+              playsInline
+            >
+              <source src="/assets/video/LogoIntroD.mp4" type="video/mp4" />
+            </video>
+            <video
+              className="intro-logo intro-logo--light intro-logo--blend w-[32rem] max-w-full"
+              autoPlay
+              loop
+              muted
+              playsInline
+            >
+              <source src="/assets/video/LogoIntroL.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
       </div>
     </div>
   );

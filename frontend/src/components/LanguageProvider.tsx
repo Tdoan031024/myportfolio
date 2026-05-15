@@ -83,9 +83,9 @@ const dictionary: Record<Language, Dictionary> = {
     navDocs: "Tài liệu",
     downloadCv: "Tải CV",
     heroKicker: "Kỹ sư Fullstack + Sáng tạo",
-    heroTitle: "Tôi tạo ra trải nghiệm số có độ sâu 3D, chuyển động mềm và UI đầy cảm xúc.",
+    heroTitle: "Xin chào! Tôi là Tuyên Đoán",
     heroDesc:
-      "Từ ý tưởng đến sản phẩm, tôi kết hợp frontend, backend và AI để tạo nên portfolio, dashboard và nền tảng tương tác cao cấp.",
+      "Tôi là một lập trình viên Fullstack, tập trung xây dựng các ứng dụng web hiện đại, tối ưu hiệu năng và mang lại trải nghiệm người dùng tốt. Tôi làm việc cả frontend lẫn backend, từ thiết kế giao diện đến xây dựng hệ thống và cơ sở dữ liệu, đảm bảo tính ổn định và khả năng mở rộng. Bên cạnh đó, tôi có kinh nghiệm với DevOps, ORM và các công cụ hỗ trợ AI để tối ưu quy trình phát triển. Tôi luôn hướng đến việc tạo ra những sản phẩm chất lượng và không ngừng học hỏi công nghệ mới.",
     heroCtaProjects: "Xem dự án",
     heroCtaContact: "Liên hệ",
     skillsKicker: "Kỹ năng",
@@ -155,9 +155,9 @@ const dictionary: Record<Language, Dictionary> = {
     navDocs: "Docs",
     downloadCv: "Download CV",
     heroKicker: "Fullstack + Creative Engineer",
-    heroTitle: "I craft immersive digital experiences with 3D depth, smooth motion, and emotive UI.",
+    heroTitle: "Hi! I'm Tuyen Doan",
     heroDesc:
-      "From concept to delivery, I blend frontend, backend, and AI to build premium portfolios, dashboards, and interactive platforms.",
+      "I am a Fullstack Developer focused on building modern, scalable web applications with strong performance and user experience. I work across both frontend and backend, from crafting responsive interfaces to designing robust systems and databases that ensure reliability and scalability. In addition, I have experience with DevOps practices, ORM tools, and AI-assisted development to optimize workflows. I am passionate about creating high-quality products while continuously learning and adapting to new technologies.",
     heroCtaProjects: "View projects",
     heroCtaContact: "Contact",
     skillsKicker: "My Skills",
@@ -167,7 +167,7 @@ const dictionary: Record<Language, Dictionary> = {
     projectsKicker: "Projects",
     projectsTitle: "Featured work",
     projectsCount: "03 case studies",
-    aboutKicker: "About",
+    aboutKicker: "About", 
     aboutTitle: "I build depth-first experiences.",
     aboutDesc:
       "8+ years in digital products, blending UI craft, 3D engineering, and robust backend systems.",
