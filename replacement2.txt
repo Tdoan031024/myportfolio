@@ -1,0 +1,89 @@
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      lookTarget.set(pointer.x, pointer.y);
+
+      if (!modelRoot) return;
+
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(modelRoot, true);
+      const isHover = hits.length > 0;
+
+      const isMenuHover =
+        isHover &&
+        Boolean(resolveNavTargetFromObject(hits[0].object, hits[0].point));
+      const isExternalHover =
+        isHover &&
+        Boolean(
+          resolveExternalTargetFromObject(hits[0].object, hits[0].point),
+        );
+      renderer.domElement.style.cursor =
+        isMenuHover || isExternalHover
+          ? 'pointer'
+          : isHover
+            ? 'crosshair'
+            : 'default';
+
+      if (hovered !== isHover) {
+        hovered = isHover;
+        setMaterialState(modelRoot, hovered);
+      }
+    };
+
+    const handlePointerLeave = () => {
+      if (!modelRoot) return;
+      hovered = false;
+      lookTarget.set(0, 0);
+      setMaterialState(modelRoot, hovered);
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      if (!modelRoot) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(modelRoot, true);
+
+      const externalTargetByPointer = resolveExternalTargetFromObject(
+        hits[0]?.object ?? null,
+        hits[0]?.point
+      );
+      if (externalTargetByPointer) {
+        window.open(
+          EXTERNAL_LINKS[externalTargetByPointer],
+          '_blank',
+          'noopener,noreferrer',
+        );
+        return;
+      }
+
+      if (hits.length > 0) {
+        const navTarget = resolveNavTargetFromObject(
+          hits[0].object,
+          hits[0].point
+        );
+        if (navTarget) {
+          scrollToSection(navTarget);
+          return;
+        }
+
+        clicked = !clicked;
+        setClickState(modelRoot, clicked);
+        lastClickAt = performance.now();
+        waveUntil = lastClickAt + 1200;
+
+        const nextLabel =
+          activeActionLabel === 'idle'
+            ? 'walk'
+            : activeActionLabel === 'walk'
+              ? 'run'
+              : 'idle';
+        playAction(actions.has(nextLabel) ? nextLabel : 'idle');
+        return;
+      }
+    };

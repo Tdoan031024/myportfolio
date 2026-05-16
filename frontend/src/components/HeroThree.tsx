@@ -277,65 +277,44 @@ export default function HeroThree({
     };
 
     const loader = new GLTFLoader();
-    const resolveNavTargetFromObject = (
-      object: THREE.Object3D | null,
-      hitPointWorld?: THREE.Vector3,
-      pointerNdc?: THREE.Vector2,
-    ): NavTarget | null => {
+    const clickableNavObjects: THREE.Object3D[] = [];
+    const navLabelPatterns: Array<{ target: NavTarget; pattern: RegExp }> = [
+      { target: "about", pattern: /(plane\.038_329|object_533|text\.002_334|object_543)/i },
+      { target: "skills", pattern: /(plane\.039_330|object_535|text\.001_333|object_541)/i },
+      { target: "works", pattern: /(plane\.042_331|object_537|text\.003_335|object_545)/i },
+      { target: "contact", pattern: /(plane\.043_332|object_539|text\.004_336|object_547)/i },
+    ];
+
+    const assignNavTarget = (node: THREE.Object3D, target: NavTarget) => {
+      node.userData.navTarget = target;
+      clickableNavObjects.push(node);
+    };
+
+    const getNavTargetFromObject = (object: THREE.Object3D | null): NavTarget | null => {
       let current: THREE.Object3D | null = object;
-
       while (current) {
-        const name = current.name.toLowerCase();
-        if (!name) {
-          current = current.parent;
-          continue;
-        }
-
-        if (name.includes("text.001") || name.includes("about")) return "about";
-        if (name.includes("text.002") || name.includes("skill")) return "skills";
-        if (
-          name.includes("text.003") ||
-          name.includes("work") ||
-          name.includes("project")
-        ) {
-          return "works";
-        }
-        if (name.includes("text.004") || name.includes("contact")) return "contact";
-
+        const target = current.userData.navTarget as NavTarget | undefined;
+        if (target) return target;
         current = current.parent;
       }
+      return null;
+    };
 
-      // Fallback when GLB node names are generic/missing:
-      // detect the left signboard column by hit position in model local space.
-      if (modelRoot && hitPointWorld) {
-        const localHit = modelRoot.worldToLocal(hitPointWorld.clone());
-        const inSignColumn =
-          localHit.x >= -1.35 &&
-          localHit.x <= -0.35 &&
-          localHit.z >= -0.4 &&
-          localHit.z <= 0.75;
+    const getNavTargetFromLocalHit = (hitPointWorld?: THREE.Vector3): NavTarget | null => {
+      if (!modelRoot || !hitPointWorld) return null;
+      const localHit = modelRoot.worldToLocal(hitPointWorld.clone());
 
-        if (inSignColumn) {
-          if (localHit.y > 0.78) return "about";
-          if (localHit.y > 0.38) return "skills";
-          if (localHit.y > -0.02) return "works";
-          if (localHit.y > -0.5) return "contact";
-        }
-      }
+      const inSignColumn =
+        localHit.x >= -1.9 &&
+        localHit.x <= 0.1 &&
+        localHit.z >= -1.2 &&
+        localHit.z <= 1.4;
+      if (!inSignColumn) return null;
 
-      // Final fallback by screen-space bands for the left signboard column.
-      if (pointerNdc) {
-        const px = pointerNdc.x;
-        const py = pointerNdc.y;
-        const inLeftColumn = px >= -0.95 && px <= -0.35;
-        if (inLeftColumn) {
-          if (py >= 0.22) return "about";
-          if (py >= -0.03) return "skills";
-          if (py >= -0.3) return "works";
-          if (py >= -0.62) return "contact";
-        }
-      }
-
+      if (localHit.y >= 0.68 && localHit.y <= 1.4) return "about";
+      if (localHit.y >= 0.24 && localHit.y <= 0.67) return "skills";
+      if (localHit.y >= -0.18 && localHit.y <= 0.23) return "works";
+      if (localHit.y >= -0.90 && localHit.y <= -0.19) return "contact";
       return null;
     };
 
@@ -344,14 +323,6 @@ export default function HeroThree({
       hitPointWorld?: THREE.Vector3,
       pointerNdc?: THREE.Vector2,
     ): ExternalTarget | null => {
-      const byThird = (value: number, min: number, max: number): ExternalTarget | null => {
-        if (value < min || value > max) return null;
-        const t = (value - min) / (max - min);
-        if (t < 1 / 3) return "facebook";
-        if (t < 2 / 3) return "github";
-        return "linkedin";
-      };
-
       let current: THREE.Object3D | null = object;
 
       while (current) {
@@ -362,44 +333,57 @@ export default function HeroThree({
         }
 
         // Only trust explicit names to avoid misclassification from generic parent names.
-        if (name.includes("facebook")) return "facebook";
-        if (name.includes("github") || name.includes("git")) return "github";
-        if (name.includes("linkedin")) return "linkedin";
+        if (
+          name.includes("mail_icon") ||
+          name.includes("object_402") ||
+          name.includes("object_403") ||
+          name.includes("object_3.002_235") ||
+          name.includes("sketchfab_model.007_237")
+        ) {
+          return "facebook";
+        }
+        if (
+          name.includes("curve.012_0_246") ||
+          name.includes("object_4.004_245") ||
+          name.includes("object_423") ||
+          name.includes("object_424") ||
+          name.includes("sketchfab_model.008_249")
+        ) {
+          return "github";
+        }
+        if (
+          name.includes("cube_0_251") ||
+          name.includes("object_4.005_250") ||
+          name.includes("object_430") ||
+          name.includes("object_431") ||
+          name.includes("sketchfab_model.009_255")
+        ) {
+          return "linkedin";
+        }
 
         current = current.parent;
       }
 
-      // Stable fallback based on screen-space row where the 3 icons are visible.
-      // Left -> Right: Facebook, GitHub, LinkedIn
-      if (pointerNdc) {
-        const iconAnchors: Array<{
-          target: ExternalTarget;
-          x: number;
-          y: number;
-        }> = [
-          { target: "facebook", x: 0.22, y: 0.58 },
-          { target: "github", x: 0.30, y: 0.58 },
-          { target: "linkedin", x: 0.38, y: 0.58 },
-        ];
-        const hitRadius = 0.05;
+      // Fallback by local hit position on right icon row (mail/github/linkedin).
+      if (modelRoot && hitPointWorld) {
+        const localHit = modelRoot.worldToLocal(hitPointWorld.clone());
+        const inIconRow =
+          localHit.x >= 0.32 &&
+          localHit.x <= 1.28 &&
+          localHit.y >= 0.05 &&
+          localHit.y <= 0.78 &&
+          localHit.z >= 0.18 &&
+          localHit.z <= 1.28;
 
-        let nearest: ExternalTarget | null = null;
-        let nearestDist = Number.POSITIVE_INFINITY;
-
-        for (const anchor of iconAnchors) {
-          const dx = pointerNdc.x - anchor.x;
-          const dy = pointerNdc.y - anchor.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist <= hitRadius && dist < nearestDist) {
-            nearest = anchor.target;
-            nearestDist = dist;
-          }
-        }
-
-        if (nearest) {
-          return nearest;
+        if (inIconRow) {
+          if (localHit.x < 0.64) return "facebook";
+          if (localHit.x < 0.98) return "github";
+          return "linkedin";
         }
       }
+
+      void hitPointWorld;
+      void pointerNdc;
 
       return null;
     };
@@ -418,12 +402,36 @@ export default function HeroThree({
       modelUrl,
       (gltf) => {
         modelRoot = gltf.scene;
+        clickableNavObjects.length = 0;
+
         modelRoot.traverse((child) => {
           if (!(child as THREE.Mesh).isMesh) return;
           const mesh = child as THREE.Mesh;
           mesh.castShadow = false;
           mesh.receiveShadow = false;
+
+          const lowerName = mesh.name.toLowerCase();
+          for (const { target, pattern } of navLabelPatterns) {
+            if (pattern.test(lowerName)) {
+              assignNavTarget(mesh, target);
+              break;
+            }
+          }
         });
+
+        if (clickableNavObjects.length === 0) {
+          // Fallback by traversal for non-mesh wrappers or transformed text groups.
+          modelRoot.traverse((child) => {
+            if (!child.name) return;
+            for (const { target, pattern } of navLabelPatterns) {
+              if (pattern.test(child.name)) {
+                assignNavTarget(child, target);
+                break;
+              }
+            }
+          });
+        }
+
         group.add(modelRoot);
         fitModelToView(modelRoot);
         modelRoot.rotation.y = initialModelRotationY ?? Math.PI * -0.35;
@@ -479,11 +487,13 @@ export default function HeroThree({
 
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(modelRoot, true);
+      const navHits = raycaster.intersectObjects(clickableNavObjects, true);
       const isHover = hits.length > 0;
 
-      const isMenuHover =
-        isHover &&
-        Boolean(resolveNavTargetFromObject(hits[0].object, hits[0].point, pointer));
+      const navTarget =
+        (navHits.length > 0 ? getNavTargetFromObject(navHits[0].object) : null) ??
+        (hits.length > 0 ? getNavTargetFromLocalHit(hits[0].point) : null);
+      const isMenuHover = Boolean(navTarget);
       const isExternalHover =
         isHover &&
         Boolean(
@@ -518,6 +528,7 @@ export default function HeroThree({
 
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(modelRoot, true);
+      const navHits = raycaster.intersectObjects(clickableNavObjects, true);
 
       const externalTargetByPointer = resolveExternalTargetFromObject(
         hits[0]?.object ?? null,
@@ -533,17 +544,23 @@ export default function HeroThree({
         return;
       }
 
-      if (hits.length > 0) {
-        const navTarget = resolveNavTargetFromObject(
-          hits[0].object,
-          hits[0].point,
-          pointer,
-        );
+      if (navHits.length > 0) {
+        const navTarget = getNavTargetFromObject(navHits[0].object);
         if (navTarget) {
           scrollToSection(navTarget);
           return;
         }
+      }
 
+      if (hits.length > 0) {
+        const navTarget = getNavTargetFromLocalHit(hits[0].point);
+        if (navTarget) {
+          scrollToSection(navTarget);
+          return;
+        }
+      }
+
+      if (hits.length > 0) {
         clicked = !clicked;
         setClickState(modelRoot, clicked);
         lastClickAt = performance.now();
@@ -559,10 +576,6 @@ export default function HeroThree({
         return;
       }
 
-      const navTargetByPointer = resolveNavTargetFromObject(null, undefined, pointer);
-      if (navTargetByPointer) {
-        scrollToSection(navTargetByPointer);
-      }
     };
 
     if (enableInteraction) {
@@ -687,3 +700,4 @@ export default function HeroThree({
 
   return <div ref={containerRef} className={className ?? "h-full w-full"} />;
 }
+

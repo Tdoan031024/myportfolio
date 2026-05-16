@@ -32,7 +32,7 @@ export default function IntroModelSection() {
             initialCameraPosition={{ x: 1.35, y: 1.85, z: 2.4 }}
             initialTarget={{ x: 0, y: 1.05, z: 0 }}
             initialModelRotationY={Math.PI * -0.567}
-            modelOffset={{ x: 0.4, y: 1.6 }}
+            modelOffset={{ x: 0.4, y: 1.5 }}
             modelUrl="/assets/models/room_IT_3d.glb"
           />
         </div>

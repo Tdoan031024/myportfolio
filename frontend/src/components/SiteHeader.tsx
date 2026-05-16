@@ -1,15 +1,44 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import LanguageToggle from "@/components/LanguageToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function SiteHeader() {
   const { t } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [entered, setEntered] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setVisible(true);
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const raf = window.requestAnimationFrame(() => setEntered(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [visible]);
+
+  if (!mounted || !visible) {
+    return null;
+  }
+
+  return createPortal(
     <header
-      className="!sticky top-0 w-full !z-[100] bg-black/60 backdrop-blur-md shadow-[0_8px_30px_rgba(6,8,18,0.55)]"
+      className={`fixed left-0 top-0 w-full !z-[100] bg-transparent transition-all duration-[1400ms] ease-out ${
+        entered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+      }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-16">
         <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
@@ -37,5 +66,7 @@ export default function SiteHeader() {
         </div>
       </div>
     </header>
+    ,
+    document.body,
   );
 }
