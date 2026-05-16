@@ -277,115 +277,42 @@ export default function HeroThree({
     };
 
     const loader = new GLTFLoader();
-    const clickableNavObjects: THREE.Object3D[] = [];
-    const navLabelPatterns: Array<{ target: NavTarget; pattern: RegExp }> = [
-      { target: "about", pattern: /(plane\.038_329|object_533|text\.002_334|object_543)/i },
-      { target: "skills", pattern: /(plane\.039_330|object_535|text\.001_333|object_541)/i },
-      { target: "works", pattern: /(plane\.042_331|object_537|text\.003_335|object_545)/i },
-      { target: "contact", pattern: /(plane\.043_332|object_539|text\.004_336|object_547)/i },
-    ];
+    const resolveBoardByPointer = (pointerNdc: THREE.Vector2): NavTarget | null => {
+      const anchors: Array<{ target: NavTarget; x: number; y: number }> = [
+        { target: "about", x: -0.74, y: 0.44 },
+        { target: "skills", x: -0.74, y: 0.14 },
+        { target: "works", x: -0.74, y: -0.16 },
+        { target: "contact", x: -0.74, y: -0.46 },
+      ];
+      const clickRadius = 0.16;
 
-    const assignNavTarget = (node: THREE.Object3D, target: NavTarget) => {
-      node.userData.navTarget = target;
-      clickableNavObjects.push(node);
-    };
+      let nearest: NavTarget | null = null;
+      let nearestDist = Number.POSITIVE_INFINITY;
 
-    const getNavTargetFromObject = (object: THREE.Object3D | null): NavTarget | null => {
-      let current: THREE.Object3D | null = object;
-      while (current) {
-        const target = current.userData.navTarget as NavTarget | undefined;
-        if (target) return target;
-        current = current.parent;
+      for (const anchor of anchors) {
+        const dx = pointerNdc.x - anchor.x;
+        const dy = pointerNdc.y - anchor.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= clickRadius && dist < nearestDist) {
+          nearest = anchor.target;
+          nearestDist = dist;
+        }
       }
-      return null;
+
+      return nearest;
     };
 
-    const getNavTargetFromLocalHit = (hitPointWorld?: THREE.Vector3): NavTarget | null => {
-      if (!modelRoot || !hitPointWorld) return null;
-      const localHit = modelRoot.worldToLocal(hitPointWorld.clone());
-
-      const inSignColumn =
-        localHit.x >= -1.9 &&
-        localHit.x <= 0.1 &&
-        localHit.z >= -1.2 &&
-        localHit.z <= 1.4;
-      if (!inSignColumn) return null;
-
-      if (localHit.y >= 0.68 && localHit.y <= 1.4) return "about";
-      if (localHit.y >= 0.24 && localHit.y <= 0.67) return "skills";
-      if (localHit.y >= -0.18 && localHit.y <= 0.23) return "works";
-      if (localHit.y >= -0.90 && localHit.y <= -0.19) return "contact";
-      return null;
-    };
-
-    const resolveExternalTargetFromObject = (
-      object: THREE.Object3D | null,
-      hitPointWorld?: THREE.Vector3,
-      pointerNdc?: THREE.Vector2,
+    const resolveExternalByPointer = (
+      pointerNdc: THREE.Vector2,
     ): ExternalTarget | null => {
-      let current: THREE.Object3D | null = object;
+      const px = pointerNdc.x;
+      const py = pointerNdc.y;
+      const inIconRow = px >= 0.20 && px <= 0.53 && py >= 0.05 && py <= 0.24;
+      if (!inIconRow) return null;
 
-      while (current) {
-        const name = current.name.toLowerCase();
-        if (!name) {
-          current = current.parent;
-          continue;
-        }
-
-        // Only trust explicit names to avoid misclassification from generic parent names.
-        if (
-          name.includes("mail_icon") ||
-          name.includes("object_402") ||
-          name.includes("object_403") ||
-          name.includes("object_3.002_235") ||
-          name.includes("sketchfab_model.007_237")
-        ) {
-          return "facebook";
-        }
-        if (
-          name.includes("curve.012_0_246") ||
-          name.includes("object_4.004_245") ||
-          name.includes("object_423") ||
-          name.includes("object_424") ||
-          name.includes("sketchfab_model.008_249")
-        ) {
-          return "github";
-        }
-        if (
-          name.includes("cube_0_251") ||
-          name.includes("object_4.005_250") ||
-          name.includes("object_430") ||
-          name.includes("object_431") ||
-          name.includes("sketchfab_model.009_255")
-        ) {
-          return "linkedin";
-        }
-
-        current = current.parent;
-      }
-
-      // Fallback by local hit position on right icon row (mail/github/linkedin).
-      if (modelRoot && hitPointWorld) {
-        const localHit = modelRoot.worldToLocal(hitPointWorld.clone());
-        const inIconRow =
-          localHit.x >= 0.32 &&
-          localHit.x <= 1.28 &&
-          localHit.y >= 0.05 &&
-          localHit.y <= 0.78 &&
-          localHit.z >= 0.18 &&
-          localHit.z <= 1.28;
-
-        if (inIconRow) {
-          if (localHit.x < 0.64) return "facebook";
-          if (localHit.x < 0.98) return "github";
-          return "linkedin";
-        }
-      }
-
-      void hitPointWorld;
-      void pointerNdc;
-
-      return null;
+      if (px < 0.31) return "facebook";
+      if (px < 0.42) return "github";
+      return "linkedin";
     };
 
     const scrollToSection = (target: NavTarget) => {
@@ -402,36 +329,12 @@ export default function HeroThree({
       modelUrl,
       (gltf) => {
         modelRoot = gltf.scene;
-        clickableNavObjects.length = 0;
-
         modelRoot.traverse((child) => {
           if (!(child as THREE.Mesh).isMesh) return;
           const mesh = child as THREE.Mesh;
           mesh.castShadow = false;
           mesh.receiveShadow = false;
-
-          const lowerName = mesh.name.toLowerCase();
-          for (const { target, pattern } of navLabelPatterns) {
-            if (pattern.test(lowerName)) {
-              assignNavTarget(mesh, target);
-              break;
-            }
-          }
         });
-
-        if (clickableNavObjects.length === 0) {
-          // Fallback by traversal for non-mesh wrappers or transformed text groups.
-          modelRoot.traverse((child) => {
-            if (!child.name) return;
-            for (const { target, pattern } of navLabelPatterns) {
-              if (pattern.test(child.name)) {
-                assignNavTarget(child, target);
-                break;
-              }
-            }
-          });
-        }
-
         group.add(modelRoot);
         fitModelToView(modelRoot);
         modelRoot.rotation.y = initialModelRotationY ?? Math.PI * -0.35;
@@ -487,24 +390,15 @@ export default function HeroThree({
 
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(modelRoot, true);
-      const navHits = raycaster.intersectObjects(clickableNavObjects, true);
       const isHover = hits.length > 0;
 
-      const navTarget =
-        (navHits.length > 0 ? getNavTargetFromObject(navHits[0].object) : null) ??
-        (hits.length > 0 ? getNavTargetFromLocalHit(hits[0].point) : null);
-      const isMenuHover = Boolean(navTarget);
-      const isExternalHover =
-        isHover &&
-        Boolean(
-          resolveExternalTargetFromObject(hits[0].object, hits[0].point, pointer),
-        );
-      renderer.domElement.style.cursor =
-        isMenuHover || isExternalHover
-          ? "pointer"
-          : isHover
-            ? "crosshair"
-            : "default";
+      const boardHover = resolveBoardByPointer(pointer);
+      const iconHover = resolveExternalByPointer(pointer);
+      renderer.domElement.style.cursor = boardHover || iconHover
+        ? "pointer"
+        : isHover
+          ? "crosshair"
+          : "default";
 
       if (hovered !== isHover) {
         hovered = isHover;
@@ -526,56 +420,17 @@ export default function HeroThree({
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-      raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObject(modelRoot, true);
-      const navHits = raycaster.intersectObjects(clickableNavObjects, true);
-
-      const externalTargetByPointer = resolveExternalTargetFromObject(
-        hits[0]?.object ?? null,
-        hits[0]?.point,
-        pointer,
-      );
-      if (externalTargetByPointer) {
-        window.open(
-          EXTERNAL_LINKS[externalTargetByPointer],
-          "_blank",
-          "noopener,noreferrer",
-        );
+      const iconTarget = resolveExternalByPointer(pointer);
+      if (iconTarget) {
+        window.open(EXTERNAL_LINKS[iconTarget], "_blank", "noopener,noreferrer");
         return;
       }
 
-      if (navHits.length > 0) {
-        const navTarget = getNavTargetFromObject(navHits[0].object);
-        if (navTarget) {
-          scrollToSection(navTarget);
-          return;
-        }
-      }
-
-      if (hits.length > 0) {
-        const navTarget = getNavTargetFromLocalHit(hits[0].point);
-        if (navTarget) {
-          scrollToSection(navTarget);
-          return;
-        }
-      }
-
-      if (hits.length > 0) {
-        clicked = !clicked;
-        setClickState(modelRoot, clicked);
-        lastClickAt = performance.now();
-        waveUntil = lastClickAt + 1200;
-
-        const nextLabel =
-          activeActionLabel === "idle"
-            ? "walk"
-            : activeActionLabel === "walk"
-              ? "run"
-              : "idle";
-        playAction(actions.has(nextLabel) ? nextLabel : "idle");
+      const boardTarget = resolveBoardByPointer(pointer);
+      if (boardTarget) {
+        scrollToSection(boardTarget);
         return;
       }
-
     };
 
     if (enableInteraction) {
@@ -584,7 +439,8 @@ export default function HeroThree({
       renderer.domElement.addEventListener("pointerdown", handleClick);
     }
 
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
 
     let isVisible = true;
     const observer = new IntersectionObserver(
@@ -598,7 +454,8 @@ export default function HeroThree({
     const animate = () => {
       rafId = window.requestAnimationFrame(animate);
       if (!isVisible) return;
-      const delta = clock.getDelta();
+      timer.update();
+      const delta = timer.getDelta();
 
       if (mixer) mixer.update(delta);
 
@@ -700,4 +557,3 @@ export default function HeroThree({
 
   return <div ref={containerRef} className={className ?? "h-full w-full"} />;
 }
-
