@@ -53,7 +53,7 @@ export default function ContactSection() {
 
   return (
     <section id="contact" className="px-6 py-24 md:px-16">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <p className="section-title">{t("contactKicker")}</p>
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.1fr]">
           <div>

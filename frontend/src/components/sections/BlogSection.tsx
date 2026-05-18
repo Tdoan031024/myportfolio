@@ -25,7 +25,7 @@ export default function BlogSection() {
   const { t } = useLanguage();
   return (
     <section id="blog" className="px-6 py-24 md:px-16">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="section-title">{t("blogKicker")}</p>

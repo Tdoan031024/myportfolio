@@ -7,7 +7,7 @@ export default function SubscribeSection() {
   const { t } = useLanguage();
   return (
     <section id="subscribe" className="px-6 py-24 md:px-16">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <p className="section-title">{t("subscribeKicker")}</p>
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
           <div>

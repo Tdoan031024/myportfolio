@@ -7,7 +7,7 @@ export default function SiteFooter() {
 
   return (
     <footer className="border-t border-white/5 px-6 py-10 md:px-16">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-white/60 md:flex-row">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-sm text-white/60 md:flex-row">
         <span>{t("footerRights")}</span>
         <div className="flex gap-4">
           <a href="https://github.com" className="hover:text-white">

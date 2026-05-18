@@ -22,7 +22,7 @@ type HeroThreeProps = {
 
 const DEFAULT_MODEL_URL = "/assets/models/room_IT_3d.glb";
 type NavTarget = "about" | "skills" | "works" | "contact";
-type ExternalTarget = "facebook" | "github" | "linkedin";
+type ExternalTarget = "mail" | "facebook" | "github" | "linkedin";
 
 const NAV_SECTION_IDS: Record<NavTarget, string[]> = {
   about: ["about"],
@@ -32,10 +32,49 @@ const NAV_SECTION_IDS: Record<NavTarget, string[]> = {
 };
 
 const EXTERNAL_LINKS: Record<ExternalTarget, string> = {
+  mail: "mailto:hello@doan.tech",
   facebook: "https://www.facebook.com/doans.310",
   github: "https://github.com/Tdoan031024",
   linkedin: "https://www.linkedin.com/in/dvtd/",
 };
+
+const NAV_MESH_PATTERNS: Record<NavTarget, RegExp[]> = {
+  about: [/Plane\.038_329/i, /Object_533/i, /Text\.002_334/i, /Object_543/i],
+  skills: [/Plane\.039_330/i, /Object_535/i, /Text\.001_333/i, /Object_541/i],
+  works: [/Plane\.042_331/i, /Object_537/i, /Text\.003_335/i, /Object_545/i],
+  contact: [/Plane\.043_332/i, /Object_539/i, /Text\.004_336/i, /Object_547/i],
+};
+
+const EXTERNAL_MESH_PATTERNS: Record<ExternalTarget, RegExp[]> = {
+  mail: [
+    /Sketchfab_model\.007_237/i,
+    /mail_icon/i,
+    /Object_3\.002_235/i,
+    /Object_402/i,
+    /Object_403/i,
+  ],
+  facebook: [],
+  github: [
+    /Sketchfab_model\.008_249/i,
+    /root\.001_248/i,
+    /GLTF_SceneRootNode\.001_247/i,
+    /Curve\.012_0_246/i,
+    /Object_4\.004_245/i,
+    /Object_423/i,
+    /Object_424/i,
+  ],
+  linkedin: [
+    /Sketchfab_model\.009_255/i,
+    /root\.003_254/i,
+    /GLTF_SceneRootNode\.005_253/i,
+    /Cube_0_251/i,
+    /Object_4\.005_250/i,
+    /Object_430/i,
+    /Object_431/i,
+  ],
+};
+
+const BALL_MESH_PATTERNS: RegExp[] = [/Sphere\s*_217/i, /Object_369/i];
 
 type Rig = {
   head?: THREE.Object3D | null;
@@ -146,7 +185,7 @@ export default function HeroThree({
     });
 
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, isCoarsePointer ? 1 : 1.35),
+      Math.min(window.devicePixelRatio, isCoarsePointer ? 1 : 1.2),
     );
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -160,8 +199,8 @@ export default function HeroThree({
       100,
     );
     const baseCameraPosition = initialCameraPosition ?? { x: 0, y: 1.1, z: 3.2 };
-    const baseCameraZ = baseCameraPosition.z;
-    const introStartZ = introZoom ? baseCameraZ + 1.2 : baseCameraZ;
+    let dynamicBaseZ = baseCameraPosition.z;
+    let introStartZ = introZoom ? dynamicBaseZ + 1.2 : dynamicBaseZ;
     camera.position.set(
       baseCameraPosition.x,
       baseCameraPosition.y,
@@ -184,26 +223,32 @@ export default function HeroThree({
     directionalLight.position.set(2.2, 4.2, 2.1);
     const rimLight = new THREE.PointLight(0x7dd3fc, 0.6, 10);
     rimLight.position.set(-2, -0.6, 2.2);
-
     scene.add(ambientLight, directionalLight, rimLight);
 
     const group = new THREE.Group();
+    group.visible = false;
     scene.add(group);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let hovered = false;
-    let clicked = false;
     let mixer: THREE.AnimationMixer | null = null;
     let modelRoot: THREE.Object3D | null = null;
+    let ballNode: THREE.Object3D | null = null;
+    let ballBaseY = 0;
+    let ballBounceStartAt = 0;
+    let ballBounceUntil = 0;
     let rig: Rig = {};
     const actions = new Map<string, THREE.AnimationAction>();
     let activeAction: THREE.AnimationAction | null = null;
-    let activeActionLabel = "idle";
     let rafId = 0;
-    let waveUntil = 0;
-    let lastClickAt = 0;
-    const introStartAt = performance.now();
+    const waveUntil = 0;
+    const lastClickAt = 0;
+    let introStartAt = 0;
+    let modelReady = false;
+    let revealOpacity = 0;
+    let revealArmed = false;
+    renderer.domElement.style.opacity = "0";
 
     const lookTarget = new THREE.Vector2(0, 0);
     const lookCurrent = new THREE.Vector2(0, 0);
@@ -216,14 +261,9 @@ export default function HeroThree({
     const playAction = (label: string) => {
       const nextAction = actions.get(label);
       if (!nextAction || nextAction === activeAction) return;
-
-      if (activeAction) {
-        activeAction.fadeOut(0.25);
-      }
-
+      if (activeAction) activeAction.fadeOut(0.25);
       nextAction.reset().fadeIn(0.25).play();
       activeAction = nextAction;
-      activeActionLabel = label;
     };
 
     const registerAction = (label: string, clip?: THREE.AnimationClip) => {
@@ -232,41 +272,18 @@ export default function HeroThree({
       actions.set(label, action);
     };
 
-    const loadExtraAnimation = (label: string, url: string) => {
-      loader.load(
-        url,
-        (animGltf) => {
-          registerAction(label, animGltf.animations[0]);
-        },
-        undefined,
-        () => {
-          // Ignore missing animation assets.
-        },
-      );
-    };
-
-    const setMaterialState = (_object: THREE.Object3D, _isHover: boolean) => {
-      // Keep original materials intact.
-    };
-
-    const setClickState = (_object: THREE.Object3D, _isClicked: boolean) => {
-      // Keep original materials intact.
-    };
-
     const fitModelToView = (object: THREE.Object3D) => {
       const box = new THREE.Box3().setFromObject(object);
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       box.getSize(size);
       box.getCenter(center);
-
       const maxDim = Math.max(size.x, size.y, size.z);
       if (maxDim === 0) return;
 
       const targetSize = 1.3;
       const scale = targetSize / maxDim;
       object.scale.setScalar(scale);
-
       object.position.sub(center.multiplyScalar(scale));
       object.position.y += 0.15;
       if (modelOffset) {
@@ -277,52 +294,41 @@ export default function HeroThree({
     };
 
     const loader = new GLTFLoader();
-    const resolveBoardByPointer = (pointerNdc: THREE.Vector2): NavTarget | null => {
-      const anchors: Array<{ target: NavTarget; x: number; y: number }> = [
-        { target: "about", x: -0.74, y: 0.44 },
-        { target: "skills", x: -0.74, y: 0.14 },
-        { target: "works", x: -0.74, y: -0.16 },
-        { target: "contact", x: -0.74, y: -0.46 },
-      ];
-      const clickRadius = 0.16;
-
-      let nearest: NavTarget | null = null;
-      let nearestDist = Number.POSITIVE_INFINITY;
-
-      for (const anchor of anchors) {
-        const dx = pointerNdc.x - anchor.x;
-        const dy = pointerNdc.y - anchor.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist <= clickRadius && dist < nearestDist) {
-          nearest = anchor.target;
-          nearestDist = dist;
-        }
-      }
-
-      return nearest;
+    const markReady = () => {
+      modelReady = true;
+      introStartAt = performance.now();
+      group.visible = true;
     };
 
-    const resolveExternalByPointer = (
-      pointerNdc: THREE.Vector2,
-    ): ExternalTarget | null => {
-      const px = pointerNdc.x;
-      const py = pointerNdc.y;
-      const inIconRow = px >= 0.20 && px <= 0.53 && py >= 0.05 && py <= 0.24;
-      if (!inIconRow) return null;
-
-      if (px < 0.31) return "facebook";
-      if (px < 0.42) return "github";
-      return "linkedin";
+    const resolveTargetByName = (
+      object: THREE.Object3D | null | undefined,
+    ): { nav?: NavTarget; external?: ExternalTarget; ball?: boolean } => {
+      let current: THREE.Object3D | null | undefined = object;
+      while (current) {
+        const name = current.name ?? "";
+        if (BALL_MESH_PATTERNS.some((pattern) => pattern.test(name))) {
+          return { ball: true };
+        }
+        for (const [target, patterns] of Object.entries(NAV_MESH_PATTERNS)) {
+          if (patterns.some((pattern) => pattern.test(name))) {
+            return { nav: target as NavTarget };
+          }
+        }
+        for (const [target, patterns] of Object.entries(EXTERNAL_MESH_PATTERNS)) {
+          if (patterns.some((pattern) => pattern.test(name))) {
+            return { external: target as ExternalTarget };
+          }
+        }
+        current = current.parent;
+      }
+      return {};
     };
 
     const scrollToSection = (target: NavTarget) => {
       const sectionId = NAV_SECTION_IDS[target].find((id) => document.getElementById(id));
       if (!sectionId) return;
       const element = document.getElementById(sectionId);
-      element?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      element?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
     loader.load(
@@ -342,11 +348,8 @@ export default function HeroThree({
         const findByName = (patterns: RegExp[]) => {
           let found: THREE.Object3D | null = null;
           modelRoot?.traverse((child) => {
-            if (found) return;
-            if (!child.name) return;
-            if (patterns.some((pattern) => pattern.test(child.name))) {
-              found = child;
-            }
+            if (found || !child.name) return;
+            if (patterns.some((pattern) => pattern.test(child.name))) found = child;
           });
           return found;
         };
@@ -358,24 +361,48 @@ export default function HeroThree({
           rightArm: findByName([/rightarm/i, /upperarm_r/i, /arm_r/i]),
         };
 
+        modelRoot.traverse((child) => {
+          if (ballNode || !child.name) return;
+          if (BALL_MESH_PATTERNS.some((pattern) => pattern.test(child.name))) {
+            ballNode = child;
+          }
+        });
+        if (ballNode) ballBaseY = ballNode.position.y;
+
         if (gltf.animations.length) {
           mixer = new THREE.AnimationMixer(modelRoot);
           registerAction("idle", gltf.animations[0]);
           playAction("idle");
 
-          if (walkUrl) loadExtraAnimation("walk", walkUrl);
-          if (runUrl) loadExtraAnimation("run", runUrl);
+          if (walkUrl) {
+            loader.load(
+              walkUrl,
+              (animGltf) => registerAction("walk", animGltf.animations[0]),
+              undefined,
+              () => {},
+            );
+          }
+          if (runUrl) {
+            loader.load(
+              runUrl,
+              (animGltf) => registerAction("run", animGltf.animations[0]),
+              undefined,
+              () => {},
+            );
+          }
         }
+
+        markReady();
       },
       undefined,
       () => {
-        // Fallback if model fails to load.
         const fallback = createFallbackCharacter(baseColor, highlightColor);
         modelRoot = fallback.group;
         rig = fallback.rig;
         group.add(modelRoot);
         fitModelToView(modelRoot);
         modelRoot.rotation.y = initialModelRotationY ?? Math.PI * -0.35;
+        markReady();
       },
     );
 
@@ -383,53 +410,50 @@ export default function HeroThree({
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
       lookTarget.set(pointer.x, pointer.y);
-
       if (!modelRoot) return;
 
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(modelRoot, true);
       const isHover = hits.length > 0;
-
-      const boardHover = resolveBoardByPointer(pointer);
-      const iconHover = resolveExternalByPointer(pointer);
-      renderer.domElement.style.cursor = boardHover || iconHover
-        ? "pointer"
-        : isHover
-          ? "crosshair"
-          : "default";
-
-      if (hovered !== isHover) {
-        hovered = isHover;
-        setMaterialState(modelRoot, hovered);
-      }
+      const hitTarget = hits.length ? resolveTargetByName(hits[0].object) : {};
+      renderer.domElement.style.cursor =
+        hitTarget.nav || hitTarget.external || hitTarget.ball
+          ? "pointer"
+          : isHover
+            ? "crosshair"
+            : "default";
+      hovered = isHover;
     };
 
     const handlePointerLeave = () => {
-      if (!modelRoot) return;
       hovered = false;
       lookTarget.set(0, 0);
-      setMaterialState(modelRoot, hovered);
     };
 
     const handleClick = (event: MouseEvent) => {
       if (!modelRoot) return;
-
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-      const iconTarget = resolveExternalByPointer(pointer);
-      if (iconTarget) {
-        window.open(EXTERNAL_LINKS[iconTarget], "_blank", "noopener,noreferrer");
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(modelRoot, true);
+      const hitTarget = hits.length ? resolveTargetByName(hits[0].object) : {};
+
+      if (hitTarget.ball) {
+        ballBounceStartAt = performance.now();
+        ballBounceUntil = ballBounceStartAt + 1400;
         return;
       }
 
-      const boardTarget = resolveBoardByPointer(pointer);
-      if (boardTarget) {
-        scrollToSection(boardTarget);
+      if (hitTarget.external) {
+        window.open(EXTERNAL_LINKS[hitTarget.external], "_blank", "noopener,noreferrer");
         return;
+      }
+
+      if (hitTarget.nav) {
+        scrollToSection(hitTarget.nav);
       }
     };
 
@@ -456,30 +480,36 @@ export default function HeroThree({
       if (!isVisible) return;
       timer.update();
       const delta = timer.getDelta();
-
       if (mixer) mixer.update(delta);
 
       lookCurrent.x += (lookTarget.x - lookCurrent.x) * 0.08;
       lookCurrent.y += (lookTarget.y - lookCurrent.y) * 0.08;
 
       const now = performance.now();
-      if (introZoom) {
+      if (modelReady && !revealArmed) revealArmed = true;
+      if (revealArmed && revealOpacity < 1) {
+        revealOpacity = Math.min(1, revealOpacity + delta * 3.6);
+        renderer.domElement.style.opacity = revealOpacity.toFixed(3);
+      }
+
+      if (introZoom && modelReady) {
         const elapsed = (now - introStartAt) / 1000;
-        const duration = 2.8;
+        const duration = 4.8;
         if (elapsed <= duration) {
           const phase = elapsed / duration;
           const ease = (value: number) => value * value * (3 - 2 * value);
           const lerp = (from: number, to: number, value: number) =>
             from + (to - from) * value;
-          if (phase <= 0.45) {
-            const t = ease(phase / 0.45);
+          if (phase <= 0.52) {
+            const t = ease(phase / 0.52);
             camera.position.z = lerp(introStartZ, 1.9, t);
           } else {
-            const t = ease((phase - 0.45) / 0.55);
-            camera.position.z = lerp(1.9, baseCameraZ, t);
+            const t = ease((phase - 0.52) / 0.48);
+            camera.position.z = lerp(1.9, dynamicBaseZ, t);
           }
         }
       }
+
       const waveActive = now < waveUntil;
       const wavePhase = waveActive ? (now - lastClickAt) / 180 : 0;
 
@@ -502,6 +532,16 @@ export default function HeroThree({
         rig.rightArm.rotation.x = Math.sin(wavePhase * 1.2) * 0.35;
       }
 
+      if (ballNode) {
+        if (now < ballBounceUntil) {
+          const t = (now - ballBounceStartAt) / 1000;
+          const damping = Math.max(0, (ballBounceUntil - now) / 1400);
+          ballNode.position.y = ballBaseY + Math.abs(Math.sin(t * 8.2)) * 0.14 * damping;
+        } else {
+          ballNode.position.y = ballBaseY;
+        }
+      }
+
       if (enableFloat) {
         group.rotation.y = Math.sin(performance.now() * 0.0004) * 0.08;
         group.rotation.x = Math.sin(performance.now() * 0.0003) * 0.04;
@@ -516,12 +556,30 @@ export default function HeroThree({
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (!width || !height) return;
+        
+        // Cập nhật khoảng cách camera dựa trên chiều rộng màn hình (Responsive 3D)
+        const baseZ = baseCameraPosition.z;
+        if (width < 640) {
+          dynamicBaseZ = baseZ * 1.7; // Mobile: xa hơn để thấy đc toàn bộ
+        } else if (width < 1024) {
+          dynamicBaseZ = baseZ * 1.35; // Tablet
+        } else if (width > 1536) {
+          dynamicBaseZ = baseZ * 0.9; // Large monitors 20-27in: gần hơn một chút
+        } else {
+          dynamicBaseZ = baseZ; // Laptop / Desktop chuẩn
+        }
+
+        // Nếu animation intro đã xong, cập nhật ngay z của camera
+        const now = performance.now();
+        if (!introZoom || !modelReady || (now - introStartAt) / 1000 > 4.8) {
+          camera.position.z = dynamicBaseZ;
+        }
+
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
         renderer.setSize(width, height, false);
       }
     });
-
     resizeObserver.observe(container);
 
     return () => {
@@ -539,13 +597,9 @@ export default function HeroThree({
         if (!(child as THREE.Mesh).isMesh) return;
         const mesh = child as THREE.Mesh;
         mesh.geometry?.dispose();
-
         const material = mesh.material as THREE.Material | THREE.Material[];
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat.dispose());
-        } else {
-          material.dispose();
-        }
+        if (Array.isArray(material)) material.forEach((mat) => mat.dispose());
+        else material.dispose();
       });
 
       renderer.dispose();

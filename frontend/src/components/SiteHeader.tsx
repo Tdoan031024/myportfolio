@@ -40,7 +40,7 @@ export default function SiteHeader() {
         entered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-16">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:px-16">
         <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
         <nav className="hidden gap-6 text-sm text-white/70 md:flex">
           {[

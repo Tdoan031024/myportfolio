@@ -22,7 +22,7 @@ export default function AiSection() {
 
   return (
     <section id="ai" className="px-6 py-24 md:px-16">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <p className="section-title">{t("aiKicker")}</p>
         <h2 className="mt-3 text-3xl font-semibold text-white">{t("aiTitle")}</h2>
         <div className="mt-8 grid gap-6 md:grid-cols-3">

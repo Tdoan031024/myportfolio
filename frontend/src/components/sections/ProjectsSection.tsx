@@ -15,7 +15,7 @@ export default function ProjectsSection() {
 
   return (
     <section id="projects" className="px-6 py-24 md:px-16">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="section-title">{t("projectsKicker")}</p>
