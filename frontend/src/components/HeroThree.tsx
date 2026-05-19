@@ -232,6 +232,7 @@ export default function HeroThree({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let hovered = false;
+    let isPointerDownOnModel = false;
     let mixer: THREE.AnimationMixer | null = null;
     let modelRoot: THREE.Object3D | null = null;
     let ballNode: THREE.Object3D | null = null;
@@ -417,21 +418,33 @@ export default function HeroThree({
       const hits = raycaster.intersectObject(modelRoot, true);
       const isHover = hits.length > 0;
       const hitTarget = hits.length ? resolveTargetByName(hits[0].object) : {};
-      renderer.domElement.style.cursor =
-        hitTarget.nav || hitTarget.external || hitTarget.ball
-          ? "pointer"
-          : isHover
-            ? "crosshair"
-            : "default";
+      renderer.domElement.style.cursor = hitTarget.nav || hitTarget.external || hitTarget.ball
+        ? "pointer"
+        : isHover
+          ? isPointerDownOnModel
+            ? "grabbing"
+            : "grab"
+          : "default";
       hovered = isHover;
     };
 
     const handlePointerLeave = () => {
       hovered = false;
       lookTarget.set(0, 0);
+      isPointerDownOnModel = false;
+      renderer.domElement.style.cursor = "default";
     };
 
-    const handleClick = (event: MouseEvent) => {
+    const handlePointerUp = () => {
+      isPointerDownOnModel = false;
+      if (!hovered) {
+        renderer.domElement.style.cursor = "default";
+      } else {
+        renderer.domElement.style.cursor = "grab";
+      }
+    };
+
+    const handleClick = (event: PointerEvent) => {
       if (!modelRoot) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -440,6 +453,11 @@ export default function HeroThree({
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(modelRoot, true);
       const hitTarget = hits.length ? resolveTargetByName(hits[0].object) : {};
+      isPointerDownOnModel = hits.length > 0;
+
+      if (isPointerDownOnModel && !hitTarget.nav && !hitTarget.external && !hitTarget.ball) {
+        renderer.domElement.style.cursor = "grabbing";
+      }
 
       if (hitTarget.ball) {
         ballBounceStartAt = performance.now();
@@ -461,10 +479,10 @@ export default function HeroThree({
       renderer.domElement.addEventListener("pointermove", handlePointerMove);
       renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
       renderer.domElement.addEventListener("pointerdown", handleClick);
+      window.addEventListener("pointerup", handlePointerUp);
     }
 
-    const timer = new THREE.Timer();
-    timer.connect(document);
+    const clock = new THREE.Clock();
 
     let isVisible = true;
     const observer = new IntersectionObserver(
@@ -478,8 +496,7 @@ export default function HeroThree({
     const animate = () => {
       rafId = window.requestAnimationFrame(animate);
       if (!isVisible) return;
-      timer.update();
-      const delta = timer.getDelta();
+      const delta = clock.getDelta();
       if (mixer) mixer.update(delta);
 
       lookCurrent.x += (lookTarget.x - lookCurrent.x) * 0.08;
@@ -589,6 +606,7 @@ export default function HeroThree({
         renderer.domElement.removeEventListener("pointermove", handlePointerMove);
         renderer.domElement.removeEventListener("pointerleave", handlePointerLeave);
         renderer.domElement.removeEventListener("pointerdown", handleClick);
+        window.removeEventListener("pointerup", handlePointerUp);
       }
       window.cancelAnimationFrame(rafId);
       controls.dispose();

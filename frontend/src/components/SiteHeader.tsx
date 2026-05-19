@@ -40,24 +40,24 @@ export default function SiteHeader() {
         entered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:px-16">
+      <div className="mx-auto flex w-full max-w-7xl items-center px-6 py-4 md:px-16">
         <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
-        <nav className="hidden gap-6 text-sm text-white/70 md:flex">
+        <nav className="mx-auto hidden gap-6 text-base font-semibold tracking-[0.08em] text-white/80 md:flex">
           {[
-            [t("navHero"), "#hero"],
-            [t("navSkills"), "#skills"],
-            [t("navProjects"), "#projects"],
-            [t("navAbout"), "#about"],
+            ["About", "#hero"],
+            ["Skills", "#skills"],
+            ["Works", "#projects"],
             [t("navContact"), "#contact"],
-            [t("navSubscribe"), "#subscribe"],
-            [t("navDocs"), "#blog"],
-          ].map(([label, href]) => (
-            <a key={label} href={href} className="transition hover:text-white">
-              {label}
-            </a>
+          ].map(([label, href], index, items) => (
+            <div key={label} className="flex items-center gap-3">
+              <a href={href} className="transition hover:text-white">
+                {label}
+              </a>
+              {index < items.length - 1 ? <span className="text-white/35">|</span> : null}
+            </div>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
           <LanguageToggle />
           <ThemeToggle />
           <button className="rounded-full border border-white/15 px-4 py-2 text-xs text-white/80">

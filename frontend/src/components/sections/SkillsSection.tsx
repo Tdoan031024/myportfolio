@@ -1,307 +1,763 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { type ReactNode, useMemo, useState } from "react";
-import { useLanguage } from "@/components/LanguageProvider";
+import {
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type TouchEvent as ReactTouchEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Image from "next/image";
+import {
+  siDocker,
+  siDotnet,
+  siExpress,
+  siFirebase,
+  siGit,
+  siGithubactions,
+  siGooglecloud,
+  siJenkins,
+  siLaravel,
+  siMongodb,
+  siMysql,
+  siNestjs,
+  siNextdotjs,
+  siNodedotjs,
+  siOpenapiinitiative,
+  siPhp,
+  siPrisma,
+  siReact,
+  siSequelize,
+  siTailwindcss,
+} from "simple-icons/icons";
 
-type SkillGroup = {
-  id: string;
-  title: string;
-  label: string;
-  accent: string;
-  description: string;
-  skills: string[];
-  color: string;
-  icon: ReactNode;
+type OrbitName = "orbit1" | "orbit2" | "orbit3" | "orbit4" | "orbit5";
+
+type TechNode = {
+  name: string;
+  icon: string;
+  x: number;
+  y: number;
+  size: number;
+  orbit: OrbitName;
 };
 
-const Icon = ({ children }: { children: ReactNode }) => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
+type GroupConfig = {
+  id: string;
+  number: string;
+  label: string;
+  color: string;
+  color2: string;
+  labelPos: { x: number; y: number };
+  connectorEnd: { x: number; y: number };
+  nodes: TechNode[];
+};
 
-const skillGroups: SkillGroup[] = [
-  {
-    id: "backend",
-    title: "Backend",
-    label: "Server Logic",
-    accent: "Node / PHP / .NET",
-    color: "#22d3ee",
-    description: "Build APIs, auth flows, admin systems and service logic for fullstack products.",
-    skills: ["Node.js", "Express.js", "NestJS", "PHP", "Laravel", "ASP.NET MVC"],
-    icon: <Icon><path d="M4 7h16M4 12h16M4 17h16" /><path d="M7 7v10M17 7v10" /></Icon>,
-  },
+type NodePosition = {
+  x: number;
+  y: number;
+};
+
+type NodePositionMap = Record<string, NodePosition>;
+type GroupLabelPositionMap = Record<string, NodePosition>;
+
+type DragState = {
+  key: string; // node key or group id (for label drag)
+  groupId: string;
+  kind: "node" | "label";
+  offsetX: number;
+  offsetY: number;
+};
+
+const PROFILE = {
+  name: "Doan Tuyen",
+  subtitle: "Full Stack Developer",
+  avatar: "/assets/anhdoanprofile.png",
+};
+
+const GROUPS: GroupConfig[] = [
   {
     id: "frontend",
-    title: "Frontend",
-    label: "UI Engineering",
-    accent: "Web & Mobile",
-    color: "#60a5fa",
-    description: "Craft responsive interfaces, polished portfolio pages and mobile-ready UI.",
-    skills: ["ReactJS", "Next.js", "Bootstrap", "Tailwind", "React Native"],
-    icon: <Icon><path d="m8 9-4 3 4 3" /><path d="m16 9 4 3-4 3" /><path d="m14 5-4 14" /></Icon>,
+    number: "01",
+    label: "FRONTEND",
+    color: "#35eaff",
+    color2: "#9b4dff",
+    labelPos: { x: 49.9, y: 3.5 },
+    connectorEnd: { x: 49, y: 16 },
+    nodes: [
+      { name: "React", icon: "react", x: 35.4, y: 14.6, size: 72, orbit: "orbit1" },
+      { name: "Next.js", icon: "next", x: 44.1, y: 12.7, size: 72, orbit: "orbit1" },
+      { name: "Tailwind CSS", icon: "tailwind", x: 53.7, y: 12.2, size: 72, orbit: "orbit1" },
+      { name: "React Native", icon: "react", x: 62.3, y: 13.5, size: 72, orbit: "orbit1" },
+    ],
+  },
+  {
+    id: "backend",
+    number: "02",
+    label: "BACKEND",
+    color: "#ff4ecd",
+    color2: "#ff3d86",
+    labelPos: { x: 99.2, y: 33.2 },
+    connectorEnd: { x: 82, y: 38 },
+    nodes: [
+      { name: "Node.js", icon: "node", x: 74.4, y: 22.8, size: 72, orbit: "orbit2" },
+      { name: "Express.js", icon: "express", x: 81.5, y: 27.3, size: 72, orbit: "orbit2" },
+      { name: "NestJS", icon: "nestjs", x: 87.6, y: 33.1, size: 72, orbit: "orbit2" },
+      { name: "PHP", icon: "php", x: 91.8, y: 42.9, size: 72, orbit: "orbit2" },
+      { name: "Laravel", icon: "laravel", x: 92.2, y: 55.0, size: 72, orbit: "orbit2" },
+      { name: "ASP.NET MVC", icon: "dotnet", x: 87.4, y: 67.0, size: 72, orbit: "orbit2" },
+    ],
   },
   {
     id: "database",
-    title: "Database",
-    label: "Data Layer",
-    accent: "SQL & NoSQL",
-    color: "#34d399",
-    description: "Design data structures and connect applications with reliable storage services.",
-    skills: ["SQL", "MySQL", "CouchDB", "MongoDB", "Firebase"],
-    icon: <Icon><ellipse cx="12" cy="5" rx="7" ry="3" /><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5" /><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></Icon>,
+    number: "03",
+    label: "DATABASE",
+    color: "#22ffd1",
+    color2: "#65ff8f",
+    labelPos: { x: 71.9, y: 93.1 },
+    connectorEnd: { x: 68.5, y: 75.5 },
+    nodes: [
+      { name: "MySQL", icon: "mysql", x: 75.8, y: 71.7, size: 72, orbit: "orbit3" },
+      { name: "SQL Server", icon: "sqlserver", x: 68.2, y: 76.4, size: 72, orbit: "orbit3" },
+      { name: "MongoDB", icon: "mongodb", x: 60.3, y: 78.8, size: 72, orbit: "orbit3" },
+      { name: "Firebase", icon: "firebase", x: 52.6, y: 79.6, size: 72, orbit: "orbit3" },
+    ],
   },
   {
     id: "devops",
-    title: "DevOps",
-    label: "Delivery",
-    accent: "Ship & Maintain",
-    color: "#a78bfa",
-    description: "Deploy projects, manage hosting environments and automate release workflows.",
-    skills: ["Docker", "Host management", "Github Action"],
-    icon: <Icon><path d="M6 16a4 4 0 0 1 0-8 5 5 0 0 1 9.7-1.5A4.5 4.5 0 1 1 18 16H6Z" /><path d="m9 13 2 2 4-5" /></Icon>,
-  },
-  {
-    id: "api",
-    title: "ORM & API",
-    label: "Integration",
-    accent: "Clean Access",
-    color: "#f472b6",
-    description: "Structure data access and REST communication with maintainable boundaries.",
-    skills: ["Prisma", "Sequelize", "RESTful API"],
-    icon: <Icon><path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" /></Icon>,
+    number: "04",
+    label: "DEVOPS / CLOUD",
+    color: "#3aa2ff",
+    color2: "#35eaff",
+    labelPos: { x: 16.9, y: 88.4 },
+    connectorEnd: { x: 29, y: 67 },
+    nodes: [
+      { name: "Docker", icon: "docker", x: 41.6, y: 73.3, size: 72, orbit: "orbit4" },
+      { name: "GitHub Actions", icon: "actions", x: 34.2, y: 71.5, size: 72, orbit: "orbit4" },
+      { name: "CI/CD", icon: "cicd", x: 27.1, y: 68.8, size: 72, orbit: "orbit4" },
+      { name: "Cloud", icon: "cloud", x: 20.9, y: 63.8, size: 72, orbit: "orbit4" },
+    ],
   },
   {
     id: "tools",
-    title: "Tools",
-    label: "Workflow",
-    accent: "Build Faster",
-    color: "#facc15",
-    description: "Debug, collaborate, test APIs and speed up development with practical tooling.",
-    skills: ["Git", "Postman", "Laragon", "AI coding tools"],
-    icon: <Icon><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-5.1 5.1a2 2 0 1 0 2.8 2.8l5.1-5.1a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.8-2.8 2.4-2.4Z" /></Icon>,
+    number: "05",
+    label: "TOOLS / API",
+    color: "#ffd35c",
+    color2: "#ff9b33",
+    labelPos: { x: 8.2, y: 22.9 },
+    connectorEnd: { x: 22.0, y: 52.0 },
+    nodes: [
+      { name: "REST API", icon: "api", x: 21.8, y: 48.2, size: 72, orbit: "orbit5" },
+      { name: "Prisma", icon: "prisma", x: 26.4, y: 38.8, size: 72, orbit: "orbit5" },
+      { name: "Sequelize", icon: "sequelize", x: 33.1, y: 34.3, size: 72, orbit: "orbit5" },
+      { name: "Git", icon: "git", x: 39.5, y: 31.2, size: 72, orbit: "orbit5" },
+    ],
   },
 ];
 
-const softSkills = ["Teamwork", "Communication", "Problem solving", "Self-learning", "Time management"];
+function getNodeKey(groupId: string, nodeName: string) {
+  return `${groupId}:${nodeName}`;
+}
 
-export default function SkillsSection() {
-  const { t } = useLanguage();
-  const [activeId, setActiveId] = useState(skillGroups[0].id);
-  const active = useMemo(
-    () => skillGroups.find((item) => item.id === activeId) ?? skillGroups[0],
-    [activeId],
-  );
+function getInitialNodePositions() {
+  return GROUPS.reduce<NodePositionMap>((positions, group) => {
+    for (const node of group.nodes) {
+      positions[getNodeKey(group.id, node.name)] = { x: node.x, y: node.y };
+    }
+
+    return positions;
+  }, {});
+}
+
+function getInitialGroupLabelPositions() {
+  return GROUPS.reduce<GroupLabelPositionMap>((positions, group) => {
+    positions[group.id] = { x: group.labelPos.x, y: group.labelPos.y };
+    return positions;
+  }, {});
+}
+
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function toSvgPoint(point: { x: number; y: number }) {
+  return { x: point.x * 16, y: point.y * 9 };
+}
+
+function getConnectorPath(group: GroupConfig) {
+  const center = { x: 800, y: 450 };
+  const end = toSvgPoint(group.connectorEnd);
+  const offsetY = group.id === "frontend" ? -28 : group.id === "database" ? 34 : 0;
+  const mid = {
+    x: center.x + (end.x - center.x) * 0.55,
+    y: center.y + (end.y - center.y) * 0.55 + offsetY,
+  };
+
+  return `M ${center.x} ${center.y} Q ${mid.x} ${mid.y} ${end.x} ${end.y}`;
+}
+
+const TECH_BRAND: Record<string, { path: string; color: string }> = {
+  react: { path: siReact.path, color: `#${siReact.hex}` },
+  next: { path: siNextdotjs.path, color: "#FFFFFF" },
+  tailwind: { path: siTailwindcss.path, color: `#${siTailwindcss.hex}` },
+  node: { path: siNodedotjs.path, color: `#${siNodedotjs.hex}` },
+  express: { path: siExpress.path, color: "#FFFFFF" },
+  nestjs: { path: siNestjs.path, color: `#${siNestjs.hex}` },
+  php: { path: siPhp.path, color: `#${siPhp.hex}` },
+  laravel: { path: siLaravel.path, color: `#${siLaravel.hex}` },
+  dotnet: { path: siDotnet.path, color: `#${siDotnet.hex}` },
+  mysql: { path: siMysql.path, color: `#${siMysql.hex}` },
+  mongodb: { path: siMongodb.path, color: `#${siMongodb.hex}` },
+  firebase: { path: siFirebase.path, color: `#${siFirebase.hex}` },
+  docker: { path: siDocker.path, color: `#${siDocker.hex}` },
+  actions: { path: siGithubactions.path, color: `#${siGithubactions.hex}` },
+  cicd: { path: siJenkins.path, color: `#${siJenkins.hex}` },
+  cloud: { path: siGooglecloud.path, color: `#${siGooglecloud.hex}` },
+  api: { path: siOpenapiinitiative.path, color: `#${siOpenapiinitiative.hex}` },
+  prisma: { path: siPrisma.path, color: "#FFFFFF" },
+  sequelize: { path: siSequelize.path, color: `#${siSequelize.hex}` },
+  git: { path: siGit.path, color: `#${siGit.hex}` },
+};
+
+function Icon({ type }: { type: string }): ReactNode {
+  if (type === "sqlserver") {
+    return (
+      <img
+        src="/assets/logos/microsoft-sql-server.svg"
+        alt="Microsoft SQL Server"
+        draggable={false}
+      />
+    );
+  }
+
+  const brand = TECH_BRAND[type];
+
+  if (!brand) {
+    return <span className="node-letter">?</span>;
+  }
 
   return (
-    <section id="skills" className="px-6 py-20 md:px-16">
-      <div className="mx-auto max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.55 }}
-          className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
-        >
-          <div>
-            <p className="section-title">{t("skillsKicker")}</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-normal text-white md:text-5xl">
-              My Skills
-            </h2>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d={brand.path} />
+    </svg>
+  );
+}
+
+const galaxyStyles = `
+.tech-galaxy { position: relative; width: 100%; min-height: 100vh; overflow: hidden; display: grid; place-items: center; background: var(--void); isolation: isolate; }
+.tech-galaxy::before, .tech-galaxy::after { content: ""; position: absolute; inset: -20%; pointer-events: none; z-index: -2; }
+.tech-galaxy::before { background-image: radial-gradient(circle, rgba(255,255,255,.42) 0 1px, transparent 1.2px), radial-gradient(circle, rgba(62,233,255,.28) 0 1px, transparent 1.3px), radial-gradient(circle, rgba(182,88,255,.24) 0 1px, transparent 1.4px); background-size: 110px 110px, 180px 180px, 260px 260px; opacity: .3; animation: starDrift 48s linear infinite; }
+.tech-galaxy::after { content: none; }
+@keyframes starDrift { from { transform: translate3d(0,0,0); } to { transform: translate3d(-110px,80px,0); } }
+@keyframes nebulaPulse { from { opacity: .55; transform: scale(1); } to { opacity: .95; transform: scale(1.03); } }
+.corner-scan { display: none; }
+@keyframes scan { 0% { transform: translateY(-140px); } 100% { transform: translateY(calc(100vh + 140px)); } }
+.galaxy-frame { position: relative; width: min(100vw, 1600px); aspect-ratio: 16 / 9; min-height: 640px; margin-top: 64px; transform-origin: center; user-select: none; }
+.galaxy-frame::before, .galaxy-frame::after { content: none; }
+.hud-vignette { display: none; }
+.orbit-layer, .connect-layer, .node-layer, .label-layer, .core-layer, .star-layer { position: absolute; inset: 0; }
+.orbit-layer { z-index: 2; filter: drop-shadow(0 0 7px rgba(79,207,255,.4)); }
+.connect-layer { z-index: 4; opacity: .9; }
+.star-layer { z-index: 5; pointer-events: none; }
+.node-layer { z-index: 10; }
+.label-layer { z-index: 14; pointer-events: none; }
+.core-layer { z-index: 12; pointer-events: none; }
+.layer-svg { width: 100%; height: 100%; display: block; }
+.orbit-path { fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 7 9; opacity: .75; animation: dashMove 24s linear infinite; }
+.orbit-path.faint { stroke-width: .9; opacity: .32; stroke-dasharray: 2 12; }
+.orbit-path-five { stroke-width: 1.15; opacity: .62; stroke-dasharray: 5 10; }
+@keyframes dashMove { to { stroke-dashoffset: -320; } }
+.connector { fill: none; stroke-width: 1.2; stroke-dasharray: 4 9; opacity: .68; animation: ledFlow 5.5s linear infinite; filter: drop-shadow(0 0 6px currentColor); }
+@keyframes ledFlow { to { stroke-dashoffset: -90; } }
+.led-dot { filter: drop-shadow(0 0 9px currentColor); animation: dotPulse 2.6s ease-in-out infinite alternate; }
+@keyframes dotPulse { from { opacity: .55; } to { opacity: 1; } }
+.hub-connectors { display: none; }
+.star { position: absolute; border-radius: 50%; opacity: .85; box-shadow: 0 0 10px currentColor, 0 0 22px currentColor; animation: twinkle linear infinite; }
+@keyframes twinkle { 0%,100% { transform: scale(.8); opacity:.45; } 50% { transform: scale(1.25); opacity:1; } }
+.tech-node { position: absolute; left: var(--x); top: var(--y); width: var(--size); height: var(--size); transform: translate(-50%, -50%) scale(.66); opacity: 0; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; animation: nodeIntro .75s cubic-bezier(.18,.89,.32,1.28) forwards; animation-delay: var(--delay); transition: transform .28s ease, filter .28s ease; border: none; background: none; padding: 0; }
+@keyframes nodeIntro { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.tech-node:hover, .tech-node.is-highlighted { transform: translate(-50%, -50%) scale(1.16); z-index: 50; filter: saturate(1.35) brightness(1.18); }
+.tech-node.is-dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.18); z-index: 70; filter: saturate(1.45) brightness(1.24); }
+.node-shell { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.11), transparent 34%), linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 0 10px var(--color), 0 0 22px var(--color), 0 0 42px var(--color2), inset 0 0 18px rgba(255,255,255,.08); clip-path: polygon(50% 0%, 88% 14%, 100% 50%, 86% 88%, 50% 100%, 13% 87%, 0% 50%, 14% 13%); animation: nodeBreath 3.8s ease-in-out infinite alternate; }
+@keyframes nodeBreath { from { filter: brightness(.94); } to { filter: brightness(1.18); } }
+.node-shell::before, .node-shell::after { content: ""; position: absolute; inset: 6px; border-radius: inherit; clip-path: inherit; pointer-events: none; }
+.node-shell::before { border: 1px dashed rgba(255,255,255,.32); opacity:.82; animation: rotateRing 14s linear infinite; }
+.node-shell::after { inset: -8px; background: conic-gradient(from 0deg, transparent 0 18%, var(--color) 22%, transparent 28% 56%, var(--color2) 62%, transparent 70% 100%); opacity:.26; filter: blur(8px); animation: rotateRing 8s linear infinite reverse; }
+@keyframes rotateRing { to { transform: rotate(360deg); } }
+.node-icon { position: relative; width: 44%; height: 44%; display: grid; place-items: center; color: var(--color); text-shadow: 0 0 10px var(--color), 0 0 18px var(--color); filter: drop-shadow(0 0 9px var(--color)); z-index: 2; }
+.node-icon svg { width: 100%; height: 100%; }
+.node-icon img { width: 100%; height: 100%; object-fit: contain; }
+.node-letter { font-weight: 850; font-size: clamp(17px, 1.5vw, 26px); line-height: 1; letter-spacing: 0; }
+.node-letter-small { font-size: clamp(12px, 1vw, 17px); letter-spacing: 0; line-height: .95; }
+.node-name { position: absolute; left: 50%; top: calc(100% + 7px); transform: translateX(-50%); min-width: 92px; text-align: center; font-size: clamp(9px, .66vw, 12px); font-weight: 700; color: rgba(241,251,255,.88); text-shadow: 0 0 8px rgba(255,255,255,.35), 0 0 14px var(--color); pointer-events: none; }
+.tech-node:hover .node-name, .tech-node.is-highlighted .node-name { color: white; text-shadow: 0 0 8px white, 0 0 18px var(--color), 0 0 30px var(--color2); }
+.group-label { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; min-height: 34px; padding: 5px 14px 5px 6px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: linear-gradient(180deg, rgba(15,18,48,.75), rgba(5,8,24,.48)); box-shadow: 0 0 14px var(--color), inset 0 0 14px rgba(255,255,255,.035); backdrop-filter: blur(10px); pointer-events: auto; cursor: pointer; user-select: none; transition: transform .24s ease, box-shadow .24s ease; }
+.group-label .number { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: var(--color); border: 1px solid rgba(255,255,255,.24); font-size: 12px; font-weight: 900; text-shadow: 0 0 12px var(--color); background: rgba(255,255,255,.04); }
+.group-label .label-text { color: #eef7ff; font-size: clamp(10px, .72vw, 13px); font-weight: 850; letter-spacing: .08em; text-shadow: 0 0 10px var(--color); white-space: nowrap; }
+.group-label:hover, .group-label.active { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 0 16px var(--color), 0 0 38px var(--color); }
+.core { position: absolute; left: 50%; top: 50%; width: 166px; transform: translate(-50%, -48%); display: grid; justify-items: center; text-align: center; }
+.avatar-wrap { position: relative; width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, rgba(26,240,255,.22), transparent 68%); filter: drop-shadow(0 0 20px rgba(46,221,255,.72)); animation: corePulse 2.7s ease-in-out infinite alternate; }
+@keyframes corePulse { from { filter: drop-shadow(0 0 15px rgba(46,221,255,.55)); } to { filter: drop-shadow(0 0 23px rgba(255,60,214,.8)); } }
+.avatar-wrap::before { content:""; position:absolute; inset:-9px; border-radius:50%; background: conic-gradient(from 210deg, #35eaff, #3688ff, #9b4dff, #ff4ecd, #35eaff); box-shadow: 0 0 24px rgba(56,232,255,.72), 0 0 38px rgba(255,70,214,.55); animation: rotateRing 6s linear infinite; }
+.avatar-wrap::after { content:""; position:absolute; inset:-21px; border-radius:50%; border:1px dashed rgba(103,222,255,.42); box-shadow: 0 0 28px rgba(123,77,255,.34); animation: rotateRing 18s linear infinite reverse; }
+.avatar { position: relative; z-index: 2; width: 118px; height: 118px; border-radius: 50%; object-fit: cover; object-position: center; border: 2px solid rgba(255,255,255,.22); background: linear-gradient(145deg, #122659, #0a0d19 58%, #351044); }
+.core h2 { margin: 16px 0 0; font-size: 19px; line-height: 1.1; font-weight: 850; letter-spacing: 0; color: #f5fbff; text-shadow: 0 0 10px rgba(255,255,255,.3), 0 0 20px rgba(65,230,255,.42); }
+.core p { margin: 5px 0 0; font-size: 11px; color: rgba(232,246,255,.72); font-weight: 600; }
+.core-badge { margin-top: 14px; padding: 6px 16px; border-radius: 999px; border: 1px solid rgba(83,162,255,.42); background: linear-gradient(90deg, rgba(26,89,255,.18), rgba(154,69,255,.16)); color: #86bfff; font-size: 10px; font-weight: 800; letter-spacing: .05em; box-shadow: 0 0 14px rgba(48,133,255,.3), inset 0 0 12px rgba(255,255,255,.04); }
+.position-recorder { width: min(920px, calc(100vw - 32px)); margin: -28px auto 56px; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; background: rgba(2,6,15,.72); box-shadow: 0 18px 44px rgba(0,0,0,.28); backdrop-filter: blur(14px); padding: 14px; color: rgba(238,247,255,.9); }
+.position-recorder-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.position-recorder-title { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(238,247,255,.82); }
+.position-reset { border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: rgba(238,247,255,.78); background: rgba(255,255,255,.04); }
+.position-output { width: 100%; height: 220px; resize: vertical; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(0,0,0,.32); padding: 10px; font-family: var(--font-mono), ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; line-height: 1.55; color: rgba(238,247,255,.82); outline: none; }
+.position-hint { margin-top: 8px; font-size: 11px; line-height: 1.5; color: rgba(238,247,255,.58); }
+.mobile-hint { display: none; position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); color: rgba(221,244,255,.68); font-size: 12px; z-index: 40; }
+.skills-heading { position: absolute; top: 0px; left: 50%; transform: translateX(-50%); z-index: 60; text-align: center; pointer-events: none; }
+.skills-heading h2 { margin: 0; font-size: clamp(1.1rem, 2.2vw, 1.9rem); font-weight: 700; letter-spacing: 0; color: rgba(236, 247, 255, 0.96); text-shadow: 0 0 16px rgba(53, 234, 255, 0.28); }
+@media (max-width: 1100px) { .galaxy-frame { width: 1180px; transform: scale(.82); } .tech-galaxy { min-height: 760px; } }
+@media (max-width: 760px) { .tech-galaxy { min-height: 920px; place-items: start center; padding-top: 18px; } .galaxy-frame { width: 980px; min-height: 700px; transform: scale(.56); transform-origin: top center; } .position-recorder { margin-top: -160px; } .mobile-hint { display: block; } }
+`;
+
+export default function SkillsSection() {
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [draggingNodeKey, setDraggingNodeKey] = useState<string | null>(null);
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
+  const [nodePositions, setNodePositions] = useState<NodePositionMap>(() => getInitialNodePositions());
+  const [groupLabelPositions, setGroupLabelPositions] = useState<GroupLabelPositionMap>(
+    () => getInitialGroupLabelPositions(),
+  );
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef<DragState | null>(null);
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 85 }, (_, i) => ({
+        id: i,
+        left: (i * 37.7) % 100,
+        top: (i * 61.3) % 100,
+        size: 1 + ((i * 1.7) % 2.4),
+        color: i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "#55e7ff" : "#bf7fff",
+        delay: `${(i * 0.13) % 4}s`,
+        duration: `${3 + ((i * 0.19) % 4)}s`,
+      })),
+    [],
+  );
+
+  const movingDots = [
+    { id: "p1", rx: 760, ry: 342, color: "#ff4ecd", dur: "29s", begin: "-8s" },
+    { id: "p2", rx: 690, ry: 305, color: "#22ffd1", dur: "24s", begin: "-5s" },
+    { id: "p3", rx: 620, ry: 260, color: "#35eaff", dur: "19s", begin: "0s" },
+    { id: "p4", rx: 545, ry: 215, color: "#ffd35c", dur: "21s", begin: "-3s" },
+    { id: "p5", rx: 455, ry: 178, color: "#3aa2ff", dur: "17s", begin: "-7s" },
+  ];
+
+  const editableGroups = useMemo(
+    () =>
+      GROUPS.map((group) => ({
+        ...group,
+        labelPos: groupLabelPositions[group.id] ?? group.labelPos,
+        nodes: group.nodes.map((node) => ({
+          ...node,
+          ...(nodePositions[getNodeKey(group.id, node.name)] ?? {}),
+        })),
+      })),
+    [nodePositions, groupLabelPositions],
+  );
+
+  const coordinateOutput = useMemo(
+    () =>
+      editableGroups
+        .map((group) => {
+          const nodes = group.nodes
+            .map(
+              (node) =>
+                `  { name: "${node.name}", icon: "${node.icon}", x: ${node.x.toFixed(1)}, y: ${node.y.toFixed(1)}, size: ${node.size}, orbit: "${node.orbit}" },`,
+            )
+            .join("\n");
+
+          return `${group.label}\nlabelPos: { x: ${group.labelPos.x.toFixed(1)}, y: ${group.labelPos.y.toFixed(1)} }\nnodes: [\n${nodes}\n]`;
+        })
+        .join("\n\n"),
+    [editableGroups],
+  );
+
+  const getPointerPercent = (clientX: number, clientY: number) => {
+    const frame = frameRef.current;
+    if (!frame) return null;
+
+    const rect = frame.getBoundingClientRect();
+    const x = clampPercent(((clientX - rect.left) / rect.width) * 100);
+    const y = clampPercent(((clientY - rect.top) / rect.height) * 100);
+
+    return { x, y };
+  };
+
+  const updateNodePosition = (
+    key: string,
+    clientX: number,
+    clientY: number,
+    offsetX = 0,
+    offsetY = 0,
+  ) => {
+    const pointer = getPointerPercent(clientX, clientY);
+    if (!pointer) return;
+
+    const x = clampPercent(pointer.x - offsetX);
+    const y = clampPercent(pointer.y - offsetY);
+
+    setNodePositions((current) => ({
+      ...current,
+      [key]: {
+        x: Number(x.toFixed(1)),
+        y: Number(y.toFixed(1)),
+      },
+    }));
+  };
+
+  const updateGroupLabelPosition = (
+    groupId: string,
+    clientX: number,
+    clientY: number,
+    offsetX = 0,
+    offsetY = 0,
+  ) => {
+    const pointer = getPointerPercent(clientX, clientY);
+    if (!pointer) return;
+
+    const x = clampPercent(pointer.x - offsetX);
+    const y = clampPercent(pointer.y - offsetY);
+
+    setGroupLabelPositions((current) => ({
+      ...current,
+      [groupId]: {
+        x: Number(x.toFixed(1)),
+        y: Number(y.toFixed(1)),
+      },
+    }));
+  };
+
+  const startNodeDrag = (key: string, groupId: string, clientX: number, clientY: number) => {
+    setActiveGroup(groupId);
+
+    const pointer = getPointerPercent(clientX, clientY);
+    const currentPosition = nodePositions[key];
+    if (!pointer || !currentPosition) return;
+
+    draggingRef.current = {
+      key,
+      groupId,
+      kind: "node",
+      offsetX: pointer.x - currentPosition.x,
+      offsetY: pointer.y - currentPosition.y,
+    };
+    setDraggingNodeKey(key);
+  };
+
+  const startGroupLabelDrag = (groupId: string, clientX: number, clientY: number) => {
+    setActiveGroup(groupId);
+
+    const pointer = getPointerPercent(clientX, clientY);
+    const currentPosition = groupLabelPositions[groupId];
+    if (!pointer || !currentPosition) return;
+
+    draggingRef.current = {
+      key: groupId,
+      groupId,
+      kind: "label",
+      offsetX: pointer.x - currentPosition.x,
+      offsetY: pointer.y - currentPosition.y,
+    };
+    setDraggingGroupId(groupId);
+  };
+
+  const handleNodeMouseDown = (
+    key: string,
+    groupId: string,
+    event: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    startNodeDrag(key, groupId, event.clientX, event.clientY);
+  };
+
+  const handleNodeTouchStart = (
+    key: string,
+    groupId: string,
+    event: ReactTouchEvent<HTMLButtonElement>,
+  ) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    event.preventDefault();
+    startNodeDrag(key, groupId, touch.clientX, touch.clientY);
+  };
+
+  const handleGroupLabelMouseDown = (
+    groupId: string,
+    event: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    startGroupLabelDrag(groupId, event.clientX, event.clientY);
+  };
+
+  const handleGroupLabelTouchStart = (
+    groupId: string,
+    event: ReactTouchEvent<HTMLButtonElement>,
+  ) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    event.preventDefault();
+    startGroupLabelDrag(groupId, touch.clientX, touch.clientY);
+  };
+
+  useEffect(() => {
+    const handleMove = (clientX: number, clientY: number) => {
+      const dragging = draggingRef.current;
+      if (!dragging) return;
+      setActiveGroup(dragging.groupId);
+      if (dragging.kind === "node") {
+        updateNodePosition(
+          dragging.key,
+          clientX,
+          clientY,
+          dragging.offsetX,
+          dragging.offsetY,
+        );
+      } else {
+        updateGroupLabelPosition(
+          dragging.key,
+          clientX,
+          clientY,
+          dragging.offsetX,
+          dragging.offsetY,
+        );
+      }
+    };
+
+    const stopDrag = () => {
+      draggingRef.current = null;
+      setDraggingNodeKey(null);
+      setDraggingGroupId(null);
+      document.body.style.cursor = "";
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!draggingRef.current) return;
+      event.preventDefault();
+      document.body.style.cursor = "grabbing";
+      handleMove(event.clientX, event.clientY);
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!draggingRef.current) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      event.preventDefault();
+      handleMove(touch.clientX, touch.clientY);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopDrag);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", stopDrag);
+    window.addEventListener("touchcancel", stopDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopDrag);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", stopDrag);
+      window.removeEventListener("touchcancel", stopDrag);
+    };
+  }, []);
+
+  return (
+    <>
+      <style>{galaxyStyles}</style>
+      <section id="skills" className="tech-galaxy" aria-label="Tech Galaxy My Skills Section">
+        <div className="corner-scan" />
+        <div className="skills-heading">
+          <h2>Don’t Just List Skills — I Connect Systems.</h2>
+        </div>
+        <div ref={frameRef} className="galaxy-frame">
+          <svg className="orbit-layer layer-svg" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="orbitFront" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#35eaff" stopOpacity=".1" />
+                <stop offset=".3" stopColor="#9b4dff" stopOpacity=".85" />
+                <stop offset=".64" stopColor="#35eaff" stopOpacity=".75" />
+                <stop offset="1" stopColor="#ff4ecd" stopOpacity=".1" />
+              </linearGradient>
+              <linearGradient id="orbitBack" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#ffd35c" stopOpacity=".75" />
+                <stop offset=".48" stopColor="#ff4ecd" stopOpacity=".55" />
+                <stop offset="1" stopColor="#ff3d86" stopOpacity=".85" />
+              </linearGradient>
+              <linearGradient id="orbitData" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#35eaff" stopOpacity=".85" />
+                <stop offset=".58" stopColor="#22ffd1" stopOpacity=".85" />
+                <stop offset="1" stopColor="#65ff8f" stopOpacity=".75" />
+              </linearGradient>
+              <linearGradient id="orbitCloud" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="#3688ff" stopOpacity=".85" />
+                <stop offset=".65" stopColor="#35eaff" stopOpacity=".65" />
+                <stop offset="1" stopColor="#9b4dff" stopOpacity=".2" />
+              </linearGradient>
+            </defs>
+            <ellipse className="orbit-path" cx="800" cy="455" rx="760" ry="342" stroke="url(#orbitBack)" style={{ animationDuration: "38s" }} />
+            <ellipse className="orbit-path" cx="800" cy="455" rx="690" ry="305" stroke="url(#orbitData)" style={{ animationDuration: "32s" }} />
+            <ellipse className="orbit-path" cx="800" cy="455" rx="620" ry="260" stroke="url(#orbitFront)" />
+            <ellipse className="orbit-path" cx="800" cy="455" rx="545" ry="215" stroke="url(#orbitCloud)" style={{ animationDuration: "29s" }} />
+            <ellipse className="orbit-path orbit-path-five" cx="800" cy="455" rx="455" ry="178" stroke="#ffd35c" style={{ animationDuration: "27s" }} />
+            <ellipse className="orbit-path faint" cx="800" cy="455" rx="365" ry="138" stroke="#a154ff" />
+            <ellipse className="orbit-path faint" cx="800" cy="455" rx="285" ry="108" stroke="#35eaff" />
+            <ellipse className="orbit-path faint" cx="800" cy="455" rx="220" ry="82" stroke="#ff4ecd" />
+          </svg>
+
+          <svg className="connect-layer layer-svg hub-connectors" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+            {editableGroups.map((group) => {
+              const center = { x: 800, y: 450 };
+              const end = toSvgPoint(group.connectorEnd);
+              return (
+                <g key={group.id} style={{ color: group.color }}>
+                  <path className="connector" d={getConnectorPath(group)} stroke={group.color} />
+                  {[0.45, 0.72, 1].map((t, i) => (
+                    <circle
+                      key={`${group.id}-${t}`}
+                      className="led-dot"
+                      cx={center.x + (end.x - center.x) * t}
+                      cy={center.y + (end.y - center.y) * t}
+                      r={i === 2 ? 5 : 3.5}
+                      fill={group.color}
+                    />
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+
+          <div className="star-layer" aria-hidden="true">
+            {stars.map((star) => (
+              <span
+                key={star.id}
+                className="star"
+                style={{
+                  left: `${star.left}%`,
+                  top: `${star.top}%`,
+                  width: `${star.size}px`,
+                  height: `${star.size}px`,
+                  color: star.color,
+                  background: star.color,
+                  animationDelay: star.delay,
+                  animationDuration: star.duration,
+                }}
+              />
+            ))}
           </div>
-          <p className="max-w-xl text-sm leading-7 text-white/58 md:text-right">
-            A compact fullstack map: technical stack, delivery workflow, soft skills and English documentation reading.
-          </p>
-        </motion.div>
 
-        <div className="grid gap-5 lg:grid-cols-[0.86fr_1.34fr]">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.55 }}
-            className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl"
-          >
-            <div className="flex items-center justify-between text-sm text-white/52">
-              <span>Skill Navigator</span>
-              <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-cyan-100">
-                Fullstack
-              </span>
-            </div>
+          <svg className="connect-layer layer-svg" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+            {movingDots.map((item) => (
+              <g key={item.id}>
+                <path id={item.id} d={`M ${800 - item.rx} 455 a ${item.rx} ${item.ry} 0 1 0 ${item.rx * 2} 0 a ${item.rx} ${item.ry} 0 1 0 -${item.rx * 2} 0`} fill="none" stroke="transparent" />
+                <circle r="4" fill={item.color} style={{ filter: `drop-shadow(0 0 10px ${item.color}) drop-shadow(0 0 22px ${item.color})` }}>
+                  <animateMotion dur={item.dur} begin={item.begin} repeatCount="indefinite">
+                    <mpath href={`#${item.id}`} />
+                  </animateMotion>
+                </circle>
+              </g>
+            ))}
+          </svg>
 
-            <div className="relative mx-auto my-7 flex aspect-square max-w-[300px] items-center justify-center">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 26, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                className="absolute inset-1 rounded-full border border-dashed border-cyan-200/12"
-              />
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 22, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                className="absolute inset-12 rounded-full border border-white/10"
-              />
-              <div className="absolute inset-24 rounded-full bg-white/[0.035]" />
-
-              {skillGroups.map((item, index) => {
-                const positions = [
-                  "left-1/2 top-0 -translate-x-1/2",
-                  "right-2 top-[22%]",
-                  "bottom-[16%] right-[6%]",
-                  "bottom-0 left-1/2 -translate-x-1/2",
-                  "bottom-[16%] left-[6%]",
-                  "left-2 top-[22%]",
-                ];
-                const isActive = item.id === active.id;
+          <div className="node-layer">
+            {editableGroups.flatMap((group, groupIndex) =>
+              group.nodes.map((node, nodeIndex) => {
+                const key = getNodeKey(group.id, node.name);
 
                 return (
                   <button
-                    key={item.id}
+                    key={key}
                     type="button"
-                    onMouseEnter={() => setActiveId(item.id)}
-                    onClick={() => setActiveId(item.id)}
-                    aria-label={item.title}
-                    className={`absolute ${positions[index]} grid h-13 w-13 place-items-center rounded-2xl border transition duration-300 md:h-14 md:w-14 ${
-                      isActive
-                        ? "scale-110 border-white/30 bg-white/[0.12] shadow-[0_0_35px_rgba(34,211,238,.18)]"
-                        : "border-white/10 bg-white/[0.055] hover:-translate-y-1 hover:border-white/20"
+                    aria-label={node.name}
+                    className={`tech-node ${activeGroup === group.id ? "is-highlighted" : ""} ${
+                      draggingNodeKey === key ? "is-dragging" : ""
                     }`}
-                    style={{ color: item.color }}
+                    onMouseDown={(event) => handleNodeMouseDown(key, group.id, event)}
+                    onTouchStart={(event) => handleNodeTouchStart(key, group.id, event)}
+                    style={
+                      {
+                        "--x": `${node.x}%`,
+                        "--y": `${node.y}%`,
+                        "--size": `${node.size}px`,
+                        "--color": group.color,
+                        "--color2": group.color2,
+                        "--delay": `${0.25 + groupIndex * 0.12 + nodeIndex * 0.06}s`,
+                      } as CSSProperties
+                    }
                   >
-                    {item.icon}
+                    <span className="node-shell" />
+                    <span
+                      className="node-icon"
+                      style={{ color: TECH_BRAND[node.icon]?.color ?? "#FFFFFF" }}
+                    >
+                      <Icon type={node.icon} />
+                    </span>
+                    <span className="node-name">{node.name}</span>
                   </button>
                 );
-              })}
+              }),
+            )}
+          </div>
 
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={active.id}
-                  initial={{ opacity: 0, scale: 0.88 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.88 }}
-                  transition={{ duration: 0.2 }}
-                  className="grid h-28 w-28 place-items-center rounded-full border border-white/12 bg-[#071124cc] text-center shadow-[0_0_60px_rgba(34,211,238,.12)] backdrop-blur-xl"
-                >
-                  <div style={{ color: active.color }}>
-                    <div className="mx-auto mb-1 grid h-8 w-8 place-items-center">{active.icon}</div>
-                    <span className="text-sm font-semibold text-white">{active.title}</span>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={active.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.22 }}
-                className="rounded-3xl border border-white/10 bg-black/15 p-5"
+          <div className="label-layer">
+            {editableGroups.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                className={`group-label ${activeGroup === group.id ? "active" : ""} ${
+                  draggingGroupId === group.id ? "is-dragging" : ""
+                }`}
+                style={
+                  {
+                    "--x": `${group.labelPos.x}%`,
+                    "--y": `${group.labelPos.y}%`,
+                    "--color": group.color,
+                  } as CSSProperties
+                }
+                onMouseDown={(event) => handleGroupLabelMouseDown(group.id, event)}
+                onTouchStart={(event) => handleGroupLabelTouchStart(group.id, event)}
+                onMouseEnter={() => setActiveGroup(group.id)}
+                onMouseLeave={() => setActiveGroup(null)}
+                onFocus={() => setActiveGroup(group.id)}
+                onBlur={() => setActiveGroup(null)}
               >
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/42">
-                  {active.label}
-                </span>
-                <h3 className="mt-2 text-2xl font-semibold text-white">{active.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/58">{active.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {active.skills.map((skill) => (
-                    <span key={skill} className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs text-white/74">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </motion.div>
+                <span className="number">{group.number}</span>
+                <strong className="label-text">{group.label}</strong>
+              </button>
+            ))}
+          </div>
 
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {skillGroups.map((item, index) => {
-                const isActive = active.id === item.id;
-                return (
-                  <motion.button
-                    key={item.id}
-                    type="button"
-                    initial={{ opacity: 0, y: 18 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                    transition={{ duration: 0.42, delay: index * 0.04 }}
-                    onMouseEnter={() => setActiveId(item.id)}
-                    onClick={() => setActiveId(item.id)}
-                    className={`group min-h-[138px] rounded-3xl border p-5 text-left backdrop-blur-xl transition duration-300 ${
-                      isActive
-                        ? "border-cyan-200/28 bg-cyan-300/[0.075]"
-                        : "border-white/10 bg-white/[0.04] hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/42">
-                          {item.accent}
-                        </span>
-                        <h3 className="mt-2 text-xl font-semibold text-white">{item.title}</h3>
-                      </div>
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.055]" style={{ color: item.color }}>
-                        {item.icon}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {item.skills.slice(0, 3).map((skill) => (
-                        <span key={skill} className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/68">
-                          {skill}
-                        </span>
-                      ))}
-                      {item.skills.length > 3 && (
-                        <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/68">
-                          +{item.skills.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1.35fr_0.75fr]">
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.35 }}
-                transition={{ duration: 0.45 }}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl"
-              >
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/42">
-                  Soft Skills
-                </span>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {softSkills.map((skill) => (
-                    <span key={skill} className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-sm text-white/72">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.35 }}
-                transition={{ duration: 0.45, delay: 0.04 }}
-                className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl"
-              >
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/42">
-                  Language
-                </span>
-                <h3 className="mt-3 text-xl font-semibold text-white">English Reading</h3>
-                <p className="mt-2 text-sm leading-6 text-white/58">
-                  Read and understand technical documentation.
-                </p>
-              </motion.div>
+          <div className="core-layer">
+            <div className="core">
+              <div className="avatar-wrap">
+                <Image
+                  className="avatar"
+                  src={PROFILE.avatar}
+                  alt={`${PROFILE.name} portrait`}
+                  width={118}
+                  height={118}
+                  draggable={false}
+                />
+              </div>
+              <h2>{PROFILE.name}</h2>
+              <p>{PROFILE.subtitle}</p>
+              <div className="core-badge">Core</div>
             </div>
           </div>
+
+          <div className="hud-vignette" />
         </div>
-      </div>
-    </section>
+        <div className="mobile-hint">Tech Galaxy - drag horizontally on small screens</div>
+      </section>
+      {/* Coordinate recorder panel intentionally hidden after position lock-in */}
+    </>
   );
 }
