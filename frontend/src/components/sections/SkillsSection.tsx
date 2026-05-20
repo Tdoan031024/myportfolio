@@ -247,7 +247,7 @@ function Icon({ type }: { type: string }): ReactNode {
 }
 
 const galaxyStyles = `
-.tech-galaxy { position: relative; width: 100%; min-height: 100vh; overflow: hidden; display: grid; place-items: center; background: var(--void); isolation: isolate; }
+.tech-galaxy { position: relative; z-index: 20; width: 100%; min-height: 90vh; overflow: hidden; display: grid; place-items: center; background: var(--void); isolation: isolate; }
 .tech-galaxy::before, .tech-galaxy::after { content: ""; position: absolute; inset: -20%; pointer-events: none; z-index: -2; }
 .tech-galaxy::before { background-image: radial-gradient(circle, rgba(255,255,255,.42) 0 1px, transparent 1.2px), radial-gradient(circle, rgba(62,233,255,.28) 0 1px, transparent 1.3px), radial-gradient(circle, rgba(182,88,255,.24) 0 1px, transparent 1.4px); background-size: 110px 110px, 180px 180px, 260px 260px; opacity: .3; animation: starDrift 48s linear infinite; }
 .tech-galaxy::after { content: none; }
@@ -255,7 +255,7 @@ const galaxyStyles = `
 @keyframes nebulaPulse { from { opacity: .55; transform: scale(1); } to { opacity: .95; transform: scale(1.03); } }
 .corner-scan { display: none; }
 @keyframes scan { 0% { transform: translateY(-140px); } 100% { transform: translateY(calc(100vh + 140px)); } }
-.galaxy-frame { position: relative; width: min(100vw, 1600px); aspect-ratio: 16 / 9; min-height: 640px; margin-top: 64px; transform-origin: center; user-select: none; }
+.galaxy-frame { position: relative; width: min(100vw, 1500px); aspect-ratio: 16 / 9; min-height: 590px; margin-top: 44px; transform-origin: center; user-select: none; }
 .galaxy-frame::before, .galaxy-frame::after { content: none; }
 .hud-vignette { display: none; }
 .orbit-layer, .connect-layer, .node-layer, .label-layer, .core-layer, .star-layer { position: absolute; inset: 0; }
@@ -314,9 +314,9 @@ const galaxyStyles = `
 .position-output { width: 100%; height: 220px; resize: vertical; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(0,0,0,.32); padding: 10px; font-family: var(--font-mono), ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; line-height: 1.55; color: rgba(238,247,255,.82); outline: none; }
 .position-hint { margin-top: 8px; font-size: 11px; line-height: 1.5; color: rgba(238,247,255,.58); }
 .mobile-hint { display: none; position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); color: rgba(221,244,255,.68); font-size: 12px; z-index: 40; }
-.skills-heading { position: absolute; top: 0px; left: 50%; transform: translateX(-50%); z-index: 60; text-align: center; pointer-events: none; }
+.skills-heading { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); z-index: 120; text-align: center; pointer-events: none; }
 .skills-heading h2 { margin: 0; font-size: clamp(1.1rem, 2.2vw, 1.9rem); font-weight: 700; letter-spacing: 0; color: rgba(236, 247, 255, 0.96); text-shadow: 0 0 16px rgba(53, 234, 255, 0.28); }
-@media (max-width: 1100px) { .galaxy-frame { width: 1180px; transform: scale(.82); } .tech-galaxy { min-height: 760px; } }
+@media (max-width: 1100px) { .galaxy-frame { width: 1120px; transform: scale(.8); } .tech-galaxy { min-height: 700px; } }
 @media (max-width: 760px) { .tech-galaxy { min-height: 920px; place-items: start center; padding-top: 18px; } .galaxy-frame { width: 980px; min-height: 700px; transform: scale(.56); transform-origin: top center; } .position-recorder { margin-top: -160px; } .mobile-hint { display: block; } }
 `;
 
@@ -749,7 +749,6 @@ export default function SkillsSection() {
               </div>
               <h2>{PROFILE.name}</h2>
               <p>{PROFILE.subtitle}</p>
-              <div className="core-badge">Core</div>
             </div>
           </div>
 

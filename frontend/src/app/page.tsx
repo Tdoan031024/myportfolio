@@ -1,14 +1,11 @@
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
-import AboutSection from "@/components/sections/AboutSection";
-import AiSection from "@/components/sections/AiSection";
-import BlogSection from "@/components/sections/BlogSection";
 import ContactSection from "@/components/sections/ContactSection";
+import ExperienceSection from "@/components/sections/ExperienceSection";
 import HeroSection from "@/components/sections/HeroSection";
 import IntroModelSection from "@/components/sections/IntroModelSection";
 import ProjectsSection from "@/components/sections/ProjectsSection";
 import SkillsSection from "@/components/sections/SkillsSection";
-import SubscribeSection from "@/components/sections/SubscribeSection";
 
 export default function Home() {
   return (
@@ -20,11 +17,8 @@ export default function Home() {
         <IntroModelSection />
         <HeroSection />
         <SkillsSection />
+        <ExperienceSection />
         <ProjectsSection />
-        <AboutSection />
-        <AiSection />
-        <BlogSection />
-        <SubscribeSection />
         <ContactSection />
       </main>
 

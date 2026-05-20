@@ -2,9 +2,51 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import LanguageToggle from "@/components/LanguageToggle";
 import ThemeToggle from "@/components/ThemeToggle";
+import GoogleTranslate from "@/components/GoogleTranslate";
 import { useLanguage } from "@/components/LanguageProvider";
+
+const quickLinks = [
+  { label: "About", href: "#hero", icon: "user" },
+  { label: "Skills", href: "#skills", icon: "code" },
+  { label: "Works", href: "#experience", icon: "briefcase" },
+  { label: "Contact", href: "#contact", icon: "send" },
+] as const;
+
+function SidebarIcon({ type }: { type: (typeof quickLinks)[number]["icon"] }) {
+  if (type === "user") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c1.7-3.4 4.4-5 8-5s6.3 1.6 8 5" />
+      </svg>
+    );
+  }
+  if (type === "code") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M8 8 4 12l4 4" />
+        <path d="m16 8 4 4-4 4" />
+        <path d="m13 5-2 14" />
+      </svg>
+    );
+  }
+  if (type === "briefcase") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        <path d="M3 13h18" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 20 21 3" />
+      <path d="M21 3 14 21l-3-7-7-3Z" />
+    </svg>
+  );
+}
 
 export default function SiteHeader() {
   const { t } = useLanguage();
@@ -35,37 +77,41 @@ export default function SiteHeader() {
   }
 
   return createPortal(
-    <header
-      className={`fixed left-0 top-0 w-full !z-[100] bg-transparent transition-all duration-[1400ms] ease-out ${
-        entered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-      }`}
-    >
-      <div className="mx-auto flex w-full max-w-7xl items-center px-6 py-4 md:px-16">
-        <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
-        <nav className="mx-auto hidden gap-6 text-base font-semibold tracking-[0.08em] text-white/80 md:flex">
-          {[
-            ["About", "#hero"],
-            ["Skills", "#skills"],
-            ["Works", "#projects"],
-            [t("navContact"), "#contact"],
-          ].map(([label, href], index, items) => (
-            <div key={label} className="flex items-center gap-3">
-              <a href={href} className="transition hover:text-white">
-                {label}
-              </a>
-              {index < items.length - 1 ? <span className="text-white/35">|</span> : null}
-            </div>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-3">
-          <LanguageToggle />
-          <ThemeToggle />
-          <button className="rounded-full border border-white/15 px-4 py-2 text-xs text-white/80">
-            {t("downloadCv")}
-          </button>
+    <>
+      <header
+        className={`fixed left-0 top-0 w-full !z-[100] border-b border-transparent bg-transparent transition-all duration-[1400ms] ease-out ${
+          entered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
+      >
+        <div className="flex w-full items-center px-6 py-4 md:px-10 md:pr-16 lg:px-12 lg:pr-20">
+          <span className="text-sm font-semibold tracking-[0.3em] text-white">DOAN</span>
+          <div className="ml-auto flex items-center gap-3">
+            <GoogleTranslate />
+            <ThemeToggle />
+            <button className="rounded-full border border-cyan-200/55 bg-cyan-300/18 px-4 py-2 text-xs font-semibold text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.22)] transition hover:bg-cyan-300/28">
+              {t("downloadCv")}
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      <nav className="fixed right-4 top-1/2 !z-[220] hidden -translate-y-1/2 flex-col gap-2 md:flex">
+        {quickLinks.map((item) => (
+          <a
+            key={item.label}
+            href={item.href}
+            title={item.label}
+            aria-label={item.label}
+            className="group relative grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-[#050b18]/65 text-white/80 backdrop-blur-md transition hover:border-cyan-300/45 hover:text-cyan-200"
+          >
+            <SidebarIcon type={item.icon} />
+            <span className="pointer-events-none absolute right-[calc(100%+10px)] rounded-md border border-white/10 bg-[#050b18]/95 px-2 py-1 text-[11px] text-white/85 opacity-0 transition group-hover:opacity-100">
+              {item.label}
+            </span>
+          </a>
+        ))}
+      </nav>
+    </>
     ,
     document.body,
   );
